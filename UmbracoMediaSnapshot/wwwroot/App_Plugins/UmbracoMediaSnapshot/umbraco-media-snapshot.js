@@ -1,17 +1,17 @@
 import { LitElement as d, html as l, css as h, state as c, customElement as p } from "@umbraco-cms/backoffice/external/lit";
-import { UmbElementMixin as b } from "@umbraco-cms/backoffice/element-api";
-import { UMB_WORKSPACE_CONTEXT as m } from "@umbraco-cms/backoffice/workspace";
+import { UmbElementMixin as m } from "@umbraco-cms/backoffice/element-api";
+import { UMB_WORKSPACE_CONTEXT as b } from "@umbraco-cms/backoffice/workspace";
 import { UMB_AUTH_CONTEXT as _ } from "@umbraco-cms/backoffice/auth";
 var f = Object.defineProperty, g = Object.getOwnPropertyDescriptor, u = (e, t, i, o) => {
   for (var a = o > 1 ? void 0 : o ? g(t, i) : t, s = e.length - 1, n; s >= 0; s--)
     (n = e[s]) && (a = (o ? n(t, i, a) : n(a)) || a);
   return o && a && f(t, i, a), a;
 };
-let r = class extends b(d) {
+let r = class extends m(d) {
   constructor() {
     super(), this._versions = [], this._loading = !0, this._mediaKey = "", this.consumeContext(_, (e) => {
       this._authContext = e;
-    }), this.consumeContext(m, (e) => {
+    }), this.consumeContext(b, (e) => {
       const t = e;
       t.unique && this.observe(t.unique, (i) => {
         i && i !== this._mediaKey && (this._mediaKey = i.toString(), this._fetchVersions(this._mediaKey));
@@ -48,7 +48,10 @@ let r = class extends b(d) {
   render() {
     return this._loading ? l`<div class="loader"><uui-loader></uui-loader> Fetching snapshots...</div>` : this._versions.length === 0 ? l`
                 <uui-box>
-                    <uui-tag look="placeholder">No previous versions found in the snapshots container.</uui-tag>
+                    <div style="display: flex; align-items: center; gap: var(--uui-size-space-3);">
+                        <uui-icon name="info" style="color: var(--uui-color-primary);"></uui-icon>
+                        <span>No previous versions found in the snapshots container.</span>
+                    </div>
                 </uui-box>
             ` : l`
                 <uui-table>

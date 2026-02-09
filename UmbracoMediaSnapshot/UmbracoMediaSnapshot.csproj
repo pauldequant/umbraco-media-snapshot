@@ -21,7 +21,7 @@
 		<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
 		<PackageProjectUrl>https://github.com/pauldequant/umbraco-media-snapshot</PackageProjectUrl>
 
-		<PackageVersion>1.1.1</PackageVersion>
+		<PackageVersion>1.1.2</PackageVersion>
 	</PropertyGroup>
 
 	<ItemGroup>
