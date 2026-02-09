@@ -1,0 +1,21 @@
+{
+  "id": "UmbracoMediaSnapshot",
+  "name": "Umbraco Media Snapshot",
+  "version": "1.1.0",
+  "allowTelemetry": true,
+  "extensions": [
+    {
+      "name": "Umbraco Media Snapshot Bundle",
+      "alias": "UmbracoMediaSnapshot.PropertyEditorUi",
+      "type": "propertyEditorUi",
+      "js": "/App_Plugins/UmbracoMediaSnapshot/umbraco-media-snapshot.js",
+      "elementName": "snapshot-viewer",
+      "meta": {
+        "label": "File Snapshot History",
+        "icon": "icon-history",
+        "group": "Media Snapshot",
+        "propertyEditorSchemaAlias": "UmbracoMediaSnapshot.PropertyEditorUi"
+      }
+    }
+  ]
+}

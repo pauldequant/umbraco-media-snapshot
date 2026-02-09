@@ -1,0 +1,31 @@
+{
+  "$schema": "https://marketplace.umbraco.com/umbraco-marketplace-schema.json",
+  "AlternatePackageNames": [ "UmbracoMediaSnapshot" ],
+  "AuthorDetails": {
+    "Name": "Paul de Quant / Jon Roberts",
+    "Contributors": [],
+    "SyncContributorsFromRepository": false
+  },
+  "Category": "Editor Tools",
+  "Description": "Umbraco Media Snapshot adds lightweight media version history to Umbraco by automatically adding a File Version History property (fileVersionHistory) to common media types and creating the required Media Snapshot data type during installation/upgrade.",
+  "IssueTrackerUrl": "https://github.com/pauldequant/umbraco-media-snapshot/issues",
+  "LicenseTypes": [ "Free" ],
+  "PackageType": "Package",
+  "PackagesByAuthor": [],
+  "RelatedPackages": [],
+  "Screenshots": [
+    {
+      "ImageUrl": "https://github.com/pauldequant/umbraco-media-snapshot/blob/master/Images/editor.jpeg?raw=true",
+      "Caption": "Umbraco Media Snapshot - File Version History"
+    }
+  ],
+  "Tags": [
+    "backoffice",
+    "versioning",
+    "file history",
+    "file restore",
+    "backup",
+    "property editor"
+  ],
+  "Title": "Umbraco Media Snapshot"
+}

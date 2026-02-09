@@ -1,0 +1,92 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<!-- This is important for Umbraco UI extensions -->
+		<StaticWebAssetBasePath>/</StaticWebAssetBasePath>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<PackageId>UmbracoMediaSnapshot</PackageId>
+		<Product>UmbracoMediaSnapshot</Product>
+		<Title>Umbraco Media Snapshot</Title>
+		<Authors>Paul de Quant, Jon Roberts</Authors>
+		<PackageTags>umbraco-marketplace, media versioning, snapshots, file history, umbraco 17</PackageTags>
+		<RepositoryUrl>https://github.com/pauldequant/umbraco-media-snapshot</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<Description>Umbraco Media Snapshot adds lightweight media version history to Umbraco by automatically adding a File Version History property (fileVersionHistory) to common media types and creating the required Media Snapshot data type during installation/upgrade.</Description>
+		<Copyright>Copyright (c) 2026 Paul de Quant/Jon Roberts. All rights reserved.</Copyright>
+		<PackageReadmeFile>readme.md</PackageReadmeFile>
+		<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+		<PackageProjectUrl>https://github.com/pauldequant/umbraco-media-snapshot</PackageProjectUrl>
+
+		<PackageVersion>1.1.0</PackageVersion>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- Changed version from * to 17.0.0 to ensure .NET 10 / Umbraco 17 compatibility -->
+		<PackageReference Include="Umbraco.Cms.Web.Website" Version="[17.0.0, 18.0.0)" />
+		<PackageReference Include="Umbraco.Cms.Web.Common" Version="[17.0.0, 18.0.0)" />
+		<PackageReference Include="Umbraco.Cms.Api.Common" Version="[17.0.0, 18.0.0)" />
+		<PackageReference Include="Umbraco.Cms.Api.Management" Version="[17.0.0, 18.0.0)" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Don't include the client source folder in the final build -->
+		<Compile Remove="Client\src\api\**" />
+		<Compile Remove="Client\src\entrypoints\**" />
+		<Compile Remove="Controllers\**" />
+		<Content Remove="Client\**" />
+		<Content Remove="Controllers\**" />
+		<EmbeddedResource Remove="Client\src\api\**" />
+		<EmbeddedResource Remove="Client\src\entrypoints\**" />
+		<EmbeddedResource Remove="Controllers\**" />
+		<None Remove="Client\src\api\**" />
+		<None Remove="Client\src\entrypoints\**" />
+		<None Remove="Controllers\**" />
+		<None Remove="Client\src\bundle.manifests.ts" />
+
+		<!-- Ensure the manifest is visible in VS but not packed directly from here (Vite usually handles this) -->
+		<None Include="Client\public\umbraco-package.json" Pack="false" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Folder Include="wwwroot\App_Plugins\" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- FIXED: Asset metadata must be INSIDE the ProjectReference tag -->
+		<ProjectReference Include="..\UmbracoMediaSnapshot.Core\UmbracoMediaSnapshot.Core.csproj">
+			<PrivateAssets>all</PrivateAssets>
+			<ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</ProjectReference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Update="icon.png">
+		  <Pack>True</Pack>
+		  <PackagePath>\</PackagePath>
+		</None>
+		<None Update="readme.md">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+		<!-- Ensure your License file actually exists at this path -->
+		<None Include="..\LICENSE" Pack="true" PackagePath="" Condition="Exists('..\LICENSE')" />
+	</ItemGroup>
+
+	<PropertyGroup>
+		<!-- Tell the pack process to run the custom target below -->
+		<TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
+		<PackageIcon>icon.png</PackageIcon>
+	</PropertyGroup>
+
+	<!-- Custom Target to bundle the Core DLL into the NuGet package -->
+	<Target Name="CopyProjectReferencesToPackage" DependsOnTargets="ResolveReferences">
+		<ItemGroup>
+			<BuildOutputInPackage Include="@(ReferenceCopyLocalPaths-&gt;WithMetadataValue('ReferenceSourceTarget', 'ProjectReference'))" />
+		</ItemGroup>
+	</Target>
+</Project>

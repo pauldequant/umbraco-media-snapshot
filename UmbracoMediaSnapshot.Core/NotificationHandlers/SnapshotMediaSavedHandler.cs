@@ -1,0 +1,216 @@
+﻿namespace UmbracoMediaSnapshot.Core.NotificationHandlers
+{
+    using Azure;
+    using Azure.Storage.Blobs;
+    using Azure.Storage.Blobs.Models;
+    using System.Text.Json;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using Umbraco.Cms.Core.Events;
+    using Umbraco.Cms.Core.Notifications;
+    using Umbraco.Cms.Core.Security;
+    using Umbraco.StorageProviders.AzureBlob.IO;
+
+    /// <summary>
+    /// Defines the <see cref="SnapshotMediaSavedHandler" />
+    /// </summary>
+    public class SnapshotMediaSavedHandler : INotificationAsyncHandler<MediaSavedNotification>
+    {
+        /// <summary>
+        /// Defines the TARGET_MEDIA_TYPES - Media types that support file snapshots
+        /// </summary>
+        private static readonly string[] TARGET_MEDIA_TYPES = new[]
+        {
+            "umbracoMediaArticle",
+            "umbracoMediaAudio",
+            "File",
+            "Image",
+            "umbracoMediaVectorGraphics",
+            "umbracoMediaVideo"
+        };
+
+        /// <summary>
+        /// Defines the _backofficeSecurityAccessor
+        /// </summary>
+        private readonly IBackOfficeSecurityAccessor _backofficeSecurityAccessor;
+
+        /// <summary>
+        /// Defines the _azureBlobFileSystemProvider
+        /// </summary>
+        private readonly IAzureBlobFileSystemProvider _azureBlobFileSystemProvider;
+
+        /// <summary>
+        /// Defines the _configuration
+        /// </summary>
+        private readonly IConfiguration _configuration;
+
+        /// <summary>
+        /// Defines the _logger
+        /// </summary>
+        private readonly ILogger<SnapshotMediaSavedHandler> _logger;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SnapshotMediaSavedHandler"/> class.
+        /// </summary>
+        /// <param name="backofficeSecurityAccessor">The backofficeSecurityAccessor<see cref="IBackOfficeSecurityAccessor"/></param>
+        /// <param name="azureBlobFileSystemProvider">The azureBlobFileSystemProvider<see cref="IAzureBlobFileSystemProvider"/></param>
+        /// <param name="configuration">The configuration<see cref="IConfiguration"/></param>
+        /// <param name="logger">The logger<see cref="ILogger{SnapshotMediaSavedHandler}"/></param>
+        public SnapshotMediaSavedHandler(
+            IBackOfficeSecurityAccessor backofficeSecurityAccessor,
+            IAzureBlobFileSystemProvider azureBlobFileSystemProvider,
+            IConfiguration configuration,
+            ILogger<SnapshotMediaSavedHandler> logger)
+        {
+            _backofficeSecurityAccessor = backofficeSecurityAccessor;
+            _azureBlobFileSystemProvider = azureBlobFileSystemProvider;
+            _configuration = configuration;
+            _logger = logger;
+        }
+
+        /// <summary>
+        /// The HandleAsync
+        /// </summary>
+        /// <param name="notification">The notification<see cref="MediaSavedNotification"/></param>
+        /// <param name="cancellationToken">The cancellationToken<see cref="CancellationToken"/></param>
+        /// <returns>The <see cref="Task"/></returns>
+        public async Task HandleAsync(MediaSavedNotification notification, CancellationToken cancellationToken)
+        {
+            var connectionString = _configuration.GetValue<string>("Umbraco:Storage:AzureBlob:Media:ConnectionString");
+            var mediaContainerName = _configuration.GetValue<string>("Umbraco:Storage:AzureBlob:Media:ContainerName") ?? "umbraco";
+
+            if (string.IsNullOrEmpty(connectionString)) return;
+
+            var serviceClient = new BlobServiceClient(connectionString);
+
+            // 1. Snapshot Client (Target)
+            var snapshotContainer = serviceClient.GetBlobContainerClient("umbraco-snapshots");
+            await snapshotContainer.CreateIfNotExistsAsync(PublicAccessType.None, cancellationToken: cancellationToken);
+
+            // 2. Original Media Client (Source)
+            var mediaContainer = serviceClient.GetBlobContainerClient(mediaContainerName);
+
+            // 3. Umbraco FileSystem abstraction
+            var azureMediaFileSystem = _azureBlobFileSystemProvider.GetFileSystem("Media");
+
+            foreach (var media in notification.SavedEntities)
+            {
+                // Only process supported media types
+                if (!TARGET_MEDIA_TYPES.Contains(media.ContentType.Alias))
+                {
+                    _logger.LogDebug("Skipping media {Id} with unsupported content type '{ContentType}'", 
+                        media.Id, media.ContentType.Alias);
+                    continue;
+                }
+
+                var umbracoFileValue = media.GetValue<string>("umbracoFile");
+                if (string.IsNullOrWhiteSpace(umbracoFileValue)) continue;
+
+                // FULL PATH: "media/if3f2s40/file.csv" (Used for finding the original)
+                string? fullBlobPath = GetRawBlobPath(umbracoFileValue);
+                if (string.IsNullOrEmpty(fullBlobPath)) continue;
+
+                try
+                {
+                    // DETECTION LOGIC
+                    bool isPathDirty = media.WasPropertyDirty("umbracoFile");
+                    bool isFileRecent = false;
+
+                    try
+                    {
+                        // We ask the 'umbraco' container for 'media/if3f2s40/file.csv'
+                        var primaryBlob = mediaContainer.GetBlobClient(fullBlobPath);
+                        var properties = await primaryBlob.GetPropertiesAsync(cancellationToken: cancellationToken);
+                        isFileRecent = properties.Value.LastModified > DateTimeOffset.UtcNow.AddMinutes(-2);
+                    }
+                    catch (RequestFailedException ex) when (ex.Status == 404)
+                    {
+                        isFileRecent = true;
+                    }
+
+                    if (!isPathDirty && !isFileRecent) continue;
+
+                    // 4. PREPARE SNAPSHOT PATH (Strip 'media/' for the backup container)
+                    string snapshotPath = fullBlobPath;
+                    if (snapshotPath.StartsWith("media/", StringComparison.OrdinalIgnoreCase))
+                    {
+                        snapshotPath = snapshotPath.Substring(6); // Remove "media/"
+                    }
+
+                    // directory: "if3f2s40", fileName: "file.csv"
+                    string directory = Path.GetDirectoryName(snapshotPath)?.Replace("\\", "/") ?? "";
+                    string fileName = Path.GetFileName(snapshotPath);
+                    string timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
+
+                    // Final snapshot path: "if3f2s40/20240204_120000_file.csv"
+                    string finalVersionPath = string.IsNullOrEmpty(directory)
+                        ? $"{timestamp}_{fileName}"
+                        : $"{directory}/{timestamp}_{fileName}";
+
+                    var metadata = new Dictionary<string, string>
+                    {
+                        { "UploaderName", (_backofficeSecurityAccessor.BackOfficeSecurity?.CurrentUser?.Name ?? "System").Replace(" ", "_") },
+                        { "UploadDate", DateTime.UtcNow.ToString("O") },
+                        { "OriginalMediaId", media.Id.ToString() }
+                    };
+
+                    // 5. COPY
+                    BlobClient snapshotBlobClient = snapshotContainer.GetBlobClient(finalVersionPath);
+
+                    Stream? stream = null;
+                    for (int i = 0; i < 3; i++)
+                    {
+                        try
+                        {
+                            stream = azureMediaFileSystem.OpenFile(snapshotPath);
+                            if (stream != null) break;
+                        }
+                        catch
+                        {
+                            if (i == 2) throw;
+                            await Task.Delay(1000, cancellationToken);
+                        }
+                    }
+
+                    if (stream != null)
+                    {
+                        using (stream)
+                        {
+                            await snapshotBlobClient.UploadAsync(stream, new BlobUploadOptions { Metadata = metadata }, cancellationToken);
+                            _logger.LogInformation("Snapshot created for Media {Id} ({ContentType}) at {Path}", 
+                                media.Id, media.ContentType.Alias, finalVersionPath);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Versioning failed for Media {Id} ({ContentType})", 
+                        media.Id, media.ContentType.Alias);
+                }
+            }
+        }
+
+        /// <summary>
+        /// The GetRawBlobPath
+        /// </summary>
+        /// <param name="value">The value<see cref="string"/></param>
+        /// <returns>The <see cref="string?"/></returns>
+        private string? GetRawBlobPath(string value)
+        {
+            string? rawPath = null;
+            if (value.Trim().StartsWith("{"))
+            {
+                try
+                {
+                    var json = JsonSerializer.Deserialize<JsonElement>(value);
+                    if (json.TryGetProperty("src", out var src)) rawPath = src.GetString();
+                }
+                catch { return null; }
+            }
+            else { rawPath = value; }
+
+            // "media/if3f2s40/file.csv"
+            return rawPath?.TrimStart('/');
+        }
+    }
+}
