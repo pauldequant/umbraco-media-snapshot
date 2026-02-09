@@ -33,19 +33,11 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- Don't include the client source folder in the final build -->
-		<Compile Remove="Client\src\api\**" />
-		<Compile Remove="Client\src\entrypoints\**" />
-		<Compile Remove="Controllers\**" />
-		<Content Remove="Client\**" />
-		<Content Remove="Controllers\**" />
-		<EmbeddedResource Remove="Client\src\api\**" />
-		<EmbeddedResource Remove="Client\src\entrypoints\**" />
-		<EmbeddedResource Remove="Controllers\**" />
-		<None Remove="Client\src\api\**" />
-		<None Remove="Client\src\entrypoints\**" />
-		<None Remove="Controllers\**" />
-		<None Remove="Client\src\bundle.manifests.ts" />
+
+		<None Include="..\readme.md">
+		  <Pack>True</Pack>
+		  <PackagePath>\</PackagePath>
+		</None>
 
 		<!-- Ensure the manifest is visible in VS but not packed directly from here (Vite usually handles this) -->
 		<None Include="Client\public\umbraco-package.json" Pack="false" />
@@ -69,10 +61,7 @@
 		  <Pack>True</Pack>
 		  <PackagePath>\</PackagePath>
 		</None>
-		<None Update="readme.md">
-			<Pack>True</Pack>
-			<PackagePath>\</PackagePath>
-		</None>
+
 		<!-- Ensure your License file actually exists at this path -->
 		<None Include="..\LICENSE" Pack="true" PackagePath="" Condition="Exists('..\LICENSE')" />
 	</ItemGroup>
