@@ -23,3 +23,23 @@ This provides a consistent place to store and display historical metadata for me
 - Umbraco CMS version 17 or higher
 - .NET 10 or higher
 - Azure Blob Storage
+
+## Optional Configuration
+
+To customize behaviour, add this section to your appsettings.json:
+
+{
+  "UmbracoMediaSnapshot": {
+    "MaxSnapshotsPerMedia": 10,
+    "MaxSnapshotAgeDays": 365,
+    "SasTokenExpirationHours": 1,
+    "EnableAutomaticCleanup": true
+  }
+}
+
+## Settings Explained
+
+- MaxSnapshotsPerMedia: Maximum versions to keep (0 = unlimited)
+- MaxSnapshotAgeDays: Delete snapshots older than X days (0 = never)
+- SasTokenExpirationHours: How long download links remain valid
+- EnableAutomaticCleanup: Auto-delete old snapshots based on above limits

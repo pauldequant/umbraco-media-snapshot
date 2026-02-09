@@ -21,7 +21,7 @@
 		<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
 		<PackageProjectUrl>https://github.com/pauldequant/umbraco-media-snapshot</PackageProjectUrl>
 
-		<PackageVersion>1.1.2</PackageVersion>
+		<PackageVersion>1.1.7</PackageVersion>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -70,6 +70,7 @@
 		<!-- Tell the pack process to run the custom target below -->
 		<TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
 		<PackageIcon>icon.png</PackageIcon>
+		<PackageReleaseNotes>Added automatic file restore and additional config options</PackageReleaseNotes>
 	</PropertyGroup>
 
 	<!-- Custom Target to bundle the Core DLL into the NuGet package -->
@@ -78,4 +79,13 @@
 			<BuildOutputInPackage Include="@(ReferenceCopyLocalPaths-&gt;WithMetadataValue('ReferenceSourceTarget', 'ProjectReference'))" />
 		</ItemGroup>
 	</Target>
+
+	<ItemGroup>
+	  <!-- Exclude tsconfig.json from the package - it's only for development -->
+	  <Content Remove="Client\tsconfig.json" />
+	  <None Include="Client\tsconfig.json" Pack="false" />
+	  
+	  <!-- Exclude TypeScript source files from the package - only ship compiled output -->
+	  <Content Remove="Client\src\**\*.ts" />
+	</ItemGroup>
 </Project>

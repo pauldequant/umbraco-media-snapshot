@@ -3,6 +3,7 @@
     using Azure;
     using Azure.Storage.Blobs;
     using Azure.Storage.Blobs.Models;
+    using Microsoft.Extensions.Options;
     using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
@@ -10,6 +11,7 @@
     using Umbraco.Cms.Core.Notifications;
     using Umbraco.Cms.Core.Security;
     using Umbraco.StorageProviders.AzureBlob.IO;
+    using UmbracoMediaSnapshot.Core.Configuration;
 
     /// <summary>
     /// Defines the <see cref="SnapshotMediaSavedHandler" />
@@ -17,7 +19,7 @@
     public class SnapshotMediaSavedHandler : INotificationAsyncHandler<MediaSavedNotification>
     {
         /// <summary>
-        /// Defines the TARGET_MEDIA_TYPES - Media types that support file snapshots
+        /// Defines the TARGET_MEDIA_TYPES
         /// </summary>
         private static readonly string[] TARGET_MEDIA_TYPES = new[]
         {
@@ -50,21 +52,29 @@
         private readonly ILogger<SnapshotMediaSavedHandler> _logger;
 
         /// <summary>
+        /// Defines the _settings
+        /// </summary>
+        private readonly MediaSnapshotSettings _settings;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="SnapshotMediaSavedHandler"/> class.
         /// </summary>
         /// <param name="backofficeSecurityAccessor">The backofficeSecurityAccessor<see cref="IBackOfficeSecurityAccessor"/></param>
         /// <param name="azureBlobFileSystemProvider">The azureBlobFileSystemProvider<see cref="IAzureBlobFileSystemProvider"/></param>
         /// <param name="configuration">The configuration<see cref="IConfiguration"/></param>
+        /// <param name="settings">The settings<see cref="IOptions{MediaSnapshotSettings}"/></param>
         /// <param name="logger">The logger<see cref="ILogger{SnapshotMediaSavedHandler}"/></param>
         public SnapshotMediaSavedHandler(
             IBackOfficeSecurityAccessor backofficeSecurityAccessor,
             IAzureBlobFileSystemProvider azureBlobFileSystemProvider,
             IConfiguration configuration,
+            IOptions<MediaSnapshotSettings> settings,
             ILogger<SnapshotMediaSavedHandler> logger)
         {
             _backofficeSecurityAccessor = backofficeSecurityAccessor;
             _azureBlobFileSystemProvider = azureBlobFileSystemProvider;
             _configuration = configuration;
+            _settings = settings.Value;
             _logger = logger;
         }
 
@@ -98,7 +108,7 @@
                 // Only process supported media types
                 if (!TARGET_MEDIA_TYPES.Contains(media.ContentType.Alias))
                 {
-                    _logger.LogDebug("Skipping media {Id} with unsupported content type '{ContentType}'", 
+                    _logger.LogDebug("Skipping media {Id} with unsupported content type '{ContentType}'",
                         media.Id, media.ContentType.Alias);
                     continue;
                 }
@@ -177,14 +187,16 @@
                         using (stream)
                         {
                             await snapshotBlobClient.UploadAsync(stream, new BlobUploadOptions { Metadata = metadata }, cancellationToken);
-                            _logger.LogInformation("Snapshot created for Media {Id} ({ContentType}) at {Path}", 
+                            _logger.LogInformation("Snapshot created for Media {Id} ({ContentType}) at {Path}",
                                 media.Id, media.ContentType.Alias, finalVersionPath);
                         }
                     }
+
+                    await CleanupOldSnapshotsAsync(snapshotContainer, finalVersionPath.Substring(0, finalVersionPath.LastIndexOf('/') + 1), cancellationToken);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Versioning failed for Media {Id} ({ContentType})", 
+                    _logger.LogError(ex, "Versioning failed for Media {Id} ({ContentType})",
                         media.Id, media.ContentType.Alias);
                 }
             }
@@ -211,6 +223,36 @@
 
             // "media/if3f2s40/file.csv"
             return rawPath?.TrimStart('/');
+        }
+
+        /// <summary>
+        /// The CleanupOldSnapshotsAsync
+        /// </summary>
+        /// <param name="snapshotContainer">The snapshotContainer<see cref="BlobContainerClient"/></param>
+        /// <param name="folderPath">The folderPath<see cref="string"/></param>
+        /// <param name="cancellationToken">The cancellationToken<see cref="CancellationToken"/></param>
+        /// <returns>The <see cref="Task"/></returns>
+        private async Task CleanupOldSnapshotsAsync(BlobContainerClient snapshotContainer, string folderPath, CancellationToken cancellationToken)
+        {
+            if (!_settings.EnableAutomaticCleanup) return;
+
+            var snapshots = new List<BlobItem>();
+            await foreach (var blob in snapshotContainer.GetBlobsAsync(prefix: folderPath, cancellationToken: cancellationToken))
+            {
+                snapshots.Add(blob);
+            }
+
+            // Sort by last modified descending
+            var toDelete = snapshots
+                .OrderByDescending(b => b.Properties.LastModified)
+                .Skip(_settings.MaxSnapshotsPerMedia)
+                .ToList();
+
+            foreach (var blob in toDelete)
+            {
+                _logger.LogInformation("Deleting old snapshot: {BlobName}", blob.Name);
+                await snapshotContainer.DeleteBlobIfExistsAsync(blob.Name, cancellationToken: cancellationToken);
+            }
         }
     }
 }
