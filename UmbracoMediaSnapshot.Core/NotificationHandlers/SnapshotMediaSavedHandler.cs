@@ -122,24 +122,6 @@
 
                 try
                 {
-                    // DETECTION LOGIC
-                    bool isPathDirty = media.WasPropertyDirty("umbracoFile");
-                    bool isFileRecent = false;
-
-                    try
-                    {
-                        // We ask the 'umbraco' container for 'media/if3f2s40/file.csv'
-                        var primaryBlob = mediaContainer.GetBlobClient(fullBlobPath);
-                        var properties = await primaryBlob.GetPropertiesAsync(cancellationToken: cancellationToken);
-                        isFileRecent = properties.Value.LastModified > DateTimeOffset.UtcNow.AddMinutes(-2);
-                    }
-                    catch (RequestFailedException ex) when (ex.Status == 404)
-                    {
-                        isFileRecent = true;
-                    }
-
-                    if (!isPathDirty && !isFileRecent) continue;
-
                     // 4. PREPARE SNAPSHOT PATH (Strip 'media/' for the backup container)
                     string snapshotPath = fullBlobPath;
                     if (snapshotPath.StartsWith("media/", StringComparison.OrdinalIgnoreCase))
@@ -150,6 +132,63 @@
                     // directory: "if3f2s40", fileName: "file.csv"
                     string directory = Path.GetDirectoryName(snapshotPath)?.Replace("\\", "/") ?? "";
                     string fileName = Path.GetFileName(snapshotPath);
+
+                    // If a restore is in progress, skip the duplicate check entirely —
+                    // the restored file must always appear as the latest snapshot.
+                    bool forceSnapshot = SnapshotMediaSavingHandler.ForceSnapshotMediaIds.Remove(media.Id);
+
+                    // Check if the current file already has an identical snapshot.
+                    string folderPrefix = string.IsNullOrEmpty(directory) ? "" : $"{directory}/";
+                    bool isDuplicate = false;
+
+                    if (!forceSnapshot)
+                    {
+                        try
+                        {
+                            var existingSnapshots = new List<BlobItem>();
+                            await foreach (var blob in snapshotContainer.GetBlobsAsync(
+                                traits: BlobTraits.None,
+                                prefix: folderPrefix,
+                                cancellationToken: cancellationToken))
+                            {
+                                existingSnapshots.Add(blob);
+                            }
+
+                            if (existingSnapshots.Count > 0)
+                            {
+                                var latestSnapshot = existingSnapshots
+                                    .OrderByDescending(b => b.Properties.LastModified)
+                                    .First();
+
+                                string latestSnapshotName = Path.GetFileName(latestSnapshot.Name);
+                                string latestOriginalName = latestSnapshotName.Length > 16
+                                    ? latestSnapshotName.Substring(16)
+                                    : latestSnapshotName;
+
+                                if (string.Equals(latestOriginalName, fileName, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    var currentBlob = mediaContainer.GetBlobClient(fullBlobPath);
+                                    var currentProps = await currentBlob.GetPropertiesAsync(cancellationToken: cancellationToken);
+
+                                    if (latestSnapshot.Properties.ContentLength == currentProps.Value.ContentLength)
+                                    {
+                                        isDuplicate = true;
+                                    }
+                                }
+                            }
+                        }
+                        catch (RequestFailedException ex)
+                        {
+                            _logger.LogWarning(ex, "Could not check existing snapshots for media {Id}, proceeding with snapshot.", media.Id);
+                        }
+                    }
+
+                    if (isDuplicate)
+                    {
+                        _logger.LogDebug("File unchanged for media {Id} (matches latest snapshot), skipping.", media.Id);
+                        continue;
+                    }
+
                     string timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
 
                     // Final snapshot path: "if3f2s40/20240204_120000_file.csv"

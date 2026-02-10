@@ -13,6 +13,7 @@
     using Umbraco.Cms.Api.Management.Routing;
     using Umbraco.Cms.Core.Services;
     using UmbracoMediaSnapshot.Core.Configuration;
+    using UmbracoMediaSnapshot.Core.NotificationHandlers;
 
     /// <summary>
     /// Defines the <see cref="SnapshotApiController" />
@@ -89,21 +90,30 @@
                 {
                     var blobClient = snapshotContainer.GetBlobClient(blobItem.Name);
 
-                    // Generate a temporary SAS link (valid for 1 hour)
+                    // Generate a temporary SAS link (valid for configured hours)
                     var sasUrl = blobClient.GenerateSasUri(BlobSasPermissions.Read, DateTimeOffset.UtcNow.AddHours(_settings.SasTokenExpirationHours));
+
+                    // Use the preserved UploadDate metadata for display, fall back to blob LastModified
+                    DateTime uploadDate = blobItem.Properties.LastModified?.DateTime ?? DateTime.MinValue;
+                    if (blobItem.Metadata.TryGetValue("UploadDate", out var uploadDateStr)
+                        && DateTime.TryParse(uploadDateStr, null, System.Globalization.DateTimeStyles.RoundtripKind, out var parsedDate))
+                    {
+                        uploadDate = parsedDate;
+                    }
 
                     versions.Add(new SnapshotVersionModel
                     {
                         Name = Path.GetFileName(blobItem.Name),
-                        Date = blobItem.Properties.LastModified?.DateTime ?? DateTime.MinValue,
+                        Date = uploadDate,
                         Size = blobItem.Properties.ContentLength ?? 0,
                         Url = sasUrl.ToString(),
-                        Uploader = blobItem.Metadata.ContainsKey("UploaderName") ? blobItem.Metadata["UploaderName"] : "Unknown",
-                        IsRestored = blobItem.Metadata.ContainsKey("IsRestored") && blobItem.Metadata["IsRestored"] == "true",
-                        RestoredDate = blobItem.Metadata.ContainsKey("RestoredDate")
-                            ? DateTime.Parse(blobItem.Metadata["RestoredDate"])
+                        Uploader = blobItem.Metadata.TryGetValue("UploaderName", out var uploader) ? uploader : "Unknown",
+                        IsRestored = blobItem.Metadata.TryGetValue("RestoredFrom", out _),
+                        RestoredDate = blobItem.Metadata.TryGetValue("RestoredDate", out var restoredDateStr)
+                            && DateTime.TryParse(restoredDateStr, null, System.Globalization.DateTimeStyles.RoundtripKind, out var parsedRestoredDate)
+                            ? parsedRestoredDate
                             : null,
-                        RestoredFrom = blobItem.Metadata.ContainsKey("RestoredFrom") ? blobItem.Metadata["RestoredFrom"] : null
+                        RestoredFrom = blobItem.Metadata.TryGetValue("RestoredFrom", out var restoredFrom) ? restoredFrom : null
                     });
                 }
 
@@ -122,7 +132,10 @@
         }
 
         /// <summary>
-        /// Restores a snapshot version as the current media file
+        /// Restores a snapshot version as the current media file.
+        /// The current file is snapshotted first (Copy-on-Write), then overwritten
+        /// with the selected snapshot. The saving handler is suppressed to avoid
+        /// creating a duplicate snapshot entry.
         /// </summary>
         /// <param name="request">The restore request containing mediaKey and snapshotName</param>
         /// <returns>The <see cref="Task{IActionResult}"/></returns>
@@ -150,7 +163,7 @@
                 var snapshotContainer = serviceClient.GetBlobContainerClient("umbraco-snapshots");
                 var mediaContainer = serviceClient.GetBlobContainerClient(mediaContainerName);
 
-                // Get the snapshot blob
+                // Get the snapshot blob to restore from
                 var snapshotBlobPath = $"{folderPath}/{request.SnapshotName}";
                 var snapshotBlob = snapshotContainer.GetBlobClient(snapshotBlobPath);
 
@@ -161,19 +174,25 @@
                 var downloadResult = await snapshotBlob.DownloadAsync();
                 var snapshotProperties = await snapshotBlob.GetPropertiesAsync();
 
-                // Get the current file path for deletion
+                // Get the current file path
                 var currentFilePath = ExtractFilePath(umbracoFileValue);
                 if (string.IsNullOrEmpty(currentFilePath))
                     return BadRequest("Unable to determine current file path");
 
-                var currentMediaBlob = mediaContainer.GetBlobClient(currentFilePath.TrimStart('/'));
+                var currentMediaBlobPath = currentFilePath.TrimStart('/');
+                var currentMediaBlob = mediaContainer.GetBlobClient(currentMediaBlobPath);
 
-                // Determine the new file path (same folder, but with the snapshot's filename)
-                var newFilePath = $"media/{folderPath}/{request.SnapshotName}";
+                // ── Restore the selected snapshot into the media container ──
+                // Strip the timestamp from the snapshot filename to get the original filename
+                // Format: 20260209_155612_sample-document.pdf -> sample-document.pdf
+                var originalFileName = StripTimestampFromFilename(request.SnapshotName);
+
+                // Determine the new file path (same folder, but with the original filename without timestamp)
+                var newFilePath = $"media/{folderPath}/{originalFileName}";
                 var newMediaBlob = mediaContainer.GetBlobClient(newFilePath);
 
-                // Step 1: Delete the old file if it's different from the restored filename
-                if (!currentFilePath.TrimStart('/').Equals(newFilePath, StringComparison.OrdinalIgnoreCase))
+                // Delete the old file if it's at a different path than the restored one
+                if (!currentMediaBlobPath.Equals(newFilePath, StringComparison.OrdinalIgnoreCase))
                 {
                     if (await currentMediaBlob.ExistsAsync())
                     {
@@ -182,15 +201,15 @@
                     }
                 }
 
-                // Step 2: Copy the stream to a MemoryStream so we can read it multiple times
+                // Copy the stream to a MemoryStream so we can read it multiple times
                 using var memoryStream = new MemoryStream();
                 await downloadResult.Value.Content.CopyToAsync(memoryStream);
                 memoryStream.Position = 0;
 
-                // Step 3: Upload the snapshot content to the new location
+                // Upload the snapshot content to the media location
                 await newMediaBlob.UploadAsync(memoryStream, overwrite: true);
 
-                // Step 4: Set the content type
+                // Set the content type
                 if (!string.IsNullOrEmpty(snapshotProperties.Value.ContentType))
                 {
                     await newMediaBlob.SetHttpHeadersAsync(new BlobHttpHeaders
@@ -199,31 +218,26 @@
                     });
                 }
 
-                // Step 5: Set metadata on the restored file
-                var metadata = new Dictionary<string, string>
+                // Mark the restored snapshot blob with restore metadata
+                var restoredSnapshotMeta = new Dictionary<string, string>(snapshotProperties.Value.Metadata)
                 {
-                    { "RestoredFrom", request.SnapshotName },
-                    { "RestoredDate", DateTime.UtcNow.ToString("o") },
-                    { "IsRestored", "true" }
+                    ["RestoredFrom"] = request.SnapshotName,
+                    ["RestoredDate"] = DateTime.UtcNow.ToString("O")
                 };
+                await snapshotBlob.SetMetadataAsync(restoredSnapshotMeta);
 
-                if (snapshotProperties.Value.Metadata.ContainsKey("UploaderName"))
-                    metadata["OriginalUploader"] = snapshotProperties.Value.Metadata["UploaderName"];
+                // Update the umbracoFile value on the media item
+                var newSrc = $"/media/{folderPath}/{originalFileName}";
+                var isImage = IsImageFile(originalFileName, snapshotProperties.Value.ContentType);
 
-                await newMediaBlob.SetMetadataAsync(metadata);
-
-                // Step 6: Update the umbracoFile value
-                var newSrc = $"/media/{folderPath}/{request.SnapshotName}";
-                var isImage = IsImageFile(request.SnapshotName, snapshotProperties.Value.ContentType);
-                
                 if (umbracoFileValue?.Trim().StartsWith("{") == true)
                 {
                     // This is JSON (image file) - preserve all properties, only change src
                     using var jsonDoc = JsonDocument.Parse(umbracoFileValue);
                     var root = jsonDoc.RootElement;
-                    
+
                     var updatedJson = new Dictionary<string, object?>();
-                    
+
                     foreach (var property in root.EnumerateObject())
                     {
                         if (property.Name == "src")
@@ -236,7 +250,7 @@
                             updatedJson[property.Name] = JsonSerializer.Deserialize<object>(property.Value.GetRawText());
                         }
                     }
-                    
+
                     if (!updatedJson.ContainsKey("src"))
                     {
                         updatedJson["src"] = newSrc;
@@ -250,11 +264,11 @@
                     media.SetValue("umbracoFile", newSrc);
                 }
 
-                // Step 7: Update file size
+                // Update file size
                 var fileSize = snapshotProperties.Value.ContentLength;
                 media.SetValue("umbracoBytes", fileSize);
 
-                // Step 8: Update image dimensions if this is an image file
+                // Update image dimensions if this is an image file
                 if (isImage)
                 {
                     memoryStream.Position = 0;
@@ -270,7 +284,14 @@
                     }
                 }
 
-                // Step 9: Save the media item - this triggers MediaSavedNotification and creates a new snapshot
+                // Suppress the saving handler so it does not create a duplicate snapshot
+                SnapshotMediaSavingHandler.SuppressedMediaIds.Add(media.Id);
+
+                // Force the saved handler to create a snapshot even if the file
+                // matches an existing one (the restored file IS a previous snapshot)
+                SnapshotMediaSavingHandler.ForceSnapshotMediaIds.Add(media.Id);
+
+                // Save the media item
                 _mediaService.Save(media);
 
                 _logger.LogInformation("Successfully restored snapshot {SnapshotName} for media {MediaKey}. New path: {NewPath}",
@@ -279,7 +300,7 @@
                 return Ok(new RestoreResultModel
                 {
                     Success = true,
-                    Message = $"Successfully restored version: {request.SnapshotName}",
+                    Message = $"Successfully restored version: {originalFileName}",
                     RestoredDate = DateTime.UtcNow
                 });
             }
@@ -295,6 +316,30 @@
                     request.SnapshotName, request.MediaKey);
                 return Problem("An unexpected error occurred while restoring the snapshot");
             }
+        }
+
+        /// <summary>
+        /// Strips the timestamp prefix from a snapshot filename
+        /// Format: 20260209_155612_sample-document.pdf -> sample-document.pdf
+        /// </summary>
+        /// <param name="filename">The filename with timestamp prefix</param>
+        /// <returns>The original filename without timestamp</returns>
+        private string StripTimestampFromFilename(string filename)
+        {
+            // Pattern: YYYYMMDD_HHMMSS_originalfilename.ext
+            // We need to remove the first 16 characters (8 for date + 1 underscore + 6 for time + 1 underscore)
+
+            // Use regex to match the timestamp pattern at the start
+            var timestampPattern = @"^\d{8}_\d{6}_";
+            var match = System.Text.RegularExpressions.Regex.Match(filename, timestampPattern);
+
+            if (match.Success)
+            {
+                return filename.Substring(match.Length);
+            }
+
+            // If no timestamp found, return the original filename
+            return filename;
         }
 
         /// <summary>

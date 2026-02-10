@@ -20,6 +20,7 @@
         {
             builder.PackageMigrationPlans().Add<UmbracoMediaSnapshotMigrationPlan>();
 
+            builder.AddNotificationAsyncHandler<MediaSavingNotification, SnapshotMediaSavingHandler>();
             builder.AddNotificationAsyncHandler<MediaSavedNotification, SnapshotMediaSavedHandler>();
             builder.AddNotificationAsyncHandler<MediaDeletedNotification, SnapshotMediaDeletedHandler>();
         }

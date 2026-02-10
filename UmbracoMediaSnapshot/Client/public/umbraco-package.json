@@ -1,7 +1,7 @@
 {
   "id": "UmbracoMediaSnapshot",
   "name": "Umbraco Media Snapshot",
-  "version": "1.1.7",
+  "version": "1.3.1",
   "allowTelemetry": true,
   "extensions": [
     {
