@@ -1,16 +1,15 @@
 ﻿namespace UmbracoMediaSnapshot.Core.Controllers
 {
     using Azure;
-    using Azure.Storage.Blobs;
     using Azure.Storage.Blobs.Models;
     using Azure.Storage.Sas;
     using Configuration;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
-    using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Options;
     using Models;
     using NotificationHandlers;
+    using Services;
     using SixLabors.ImageSharp;
     using System.Text.Json;
     using Umbraco.Cms.Api.Management.Controllers;
@@ -23,13 +22,8 @@
     [VersionedApiBackOfficeRoute("snapshot")]
     [ApiExplorerSettings(GroupName = "Snapshots")]
     [Authorize(Policy = Umbraco.Cms.Web.Common.Authorization.AuthorizationPolicies.SectionAccessMedia)]
-    public class SnapshotApiController : ManagementApiControllerBase
+    public partial class SnapshotApiController : ManagementApiControllerBase
     {
-        /// <summary>
-        /// Defines the _configuration
-        /// </summary>
-        private readonly IConfiguration _configuration;
-
         /// <summary>
         /// Defines the _mediaService
         /// </summary>
@@ -46,25 +40,23 @@
         private readonly ILogger<SnapshotApiController> _logger;
 
         /// <summary>
-        /// Defines the _blobServiceClient
+        /// Defines the _blobService
         /// </summary>
-        private readonly BlobServiceClient _blobServiceClient;
+        private readonly ISnapshotBlobService _blobService;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SnapshotApiController"/> class.
         /// </summary>
-        /// <param name="configuration">The configuration<see cref="IConfiguration"/></param>
         /// <param name="mediaService">The mediaService<see cref="IMediaService"/></param>
         /// <param name="settings">The settings<see cref="IOptions{MediaSnapshotSettings}"/></param>
         /// <param name="logger">The logger<see cref="ILogger{SnapshotApiController}"/></param>
-        /// <param name="blobServiceClient">The blobServiceClient<see cref="BlobServiceClient"/></param>
-        public SnapshotApiController(IConfiguration configuration, IMediaService mediaService, IOptions<MediaSnapshotSettings> settings, ILogger<SnapshotApiController> logger, BlobServiceClient blobServiceClient)
+        /// <param name="blobService">The blobService<see cref="ISnapshotBlobService"/></param>
+        public SnapshotApiController(IMediaService mediaService, IOptions<MediaSnapshotSettings> settings, ILogger<SnapshotApiController> logger, ISnapshotBlobService blobService)
         {
-            _configuration = configuration;
             _mediaService = mediaService;
             _settings = settings.Value;
             _logger = logger;
-            _blobServiceClient = blobServiceClient;
+            _blobService = blobService;
         }
 
         /// <summary>
@@ -83,11 +75,11 @@
                 if (media == null) return NotFound();
 
                 var umbracoFileValue = media.GetValue<string>("umbracoFile");
-                string? folderPath = ExtractFolderPath(umbracoFileValue);
+                string? folderPath = _blobService.ExtractFolderPath(umbracoFileValue);
 
                 if (string.IsNullOrEmpty(folderPath)) return Ok(Enumerable.Empty<SnapshotVersionModel>());
 
-                var snapshotContainer = _blobServiceClient.GetBlobContainerClient("umbraco-snapshots");
+                var snapshotContainer = _blobService.GetSnapshotContainer();
 
                 if (!await snapshotContainer.ExistsAsync()) return Ok(Enumerable.Empty<SnapshotVersionModel>());
 
@@ -159,15 +151,13 @@
                 if (media == null) return NotFound("Media item not found");
 
                 var umbracoFileValue = media.GetValue<string>("umbracoFile");
-                string? folderPath = ExtractFolderPath(umbracoFileValue);
+                string? folderPath = _blobService.ExtractFolderPath(umbracoFileValue);
 
                 if (string.IsNullOrEmpty(folderPath))
                     return BadRequest("Unable to determine media folder path");
 
-                var mediaContainerName = _configuration.GetValue<string>("Umbraco:Storage:AzureBlob:Media:ContainerName") ?? "umbraco";
-
-                var snapshotContainer = _blobServiceClient.GetBlobContainerClient("umbraco-snapshots");
-                var mediaContainer = _blobServiceClient.GetBlobContainerClient(mediaContainerName);
+                var snapshotContainer = _blobService.GetSnapshotContainer();
+                var mediaContainer = _blobService.GetMediaContainer();
 
                 // Get the snapshot blob to restore from
                 var snapshotBlobPath = $"{folderPath}/{request.SnapshotName}";
@@ -181,7 +171,7 @@
                 var snapshotProperties = await snapshotBlob.GetPropertiesAsync();
 
                 // Get the current file path
-                var currentFilePath = ExtractFilePath(umbracoFileValue);
+                var currentFilePath = _blobService.ExtractFilePath(umbracoFileValue);
                 if (string.IsNullOrEmpty(currentFilePath))
                     return BadRequest("Unable to determine current file path");
 
@@ -345,42 +335,6 @@
 
             // If no timestamp found, return the original filename
             return filename;
-        }
-
-        /// <summary>
-        /// The ExtractFolderPath
-        /// </summary>
-        /// <param name="value">The value<see cref="string?"/></param>
-        /// <returns>The <see cref="string?"/></returns>
-        private string? ExtractFolderPath(string? value)
-        {
-            if (string.IsNullOrEmpty(value)) return null;
-            if (value.Trim().StartsWith("{"))
-            {
-                var json = JsonSerializer.Deserialize<JsonElement>(value);
-                value = json.TryGetProperty("src", out var src) ? src.GetString() ?? "" : "";
-            }
-            var parts = value.TrimStart('/').Split('/').ToList();
-            if (parts.Count > 1 && parts[0].Equals("media", StringComparison.OrdinalIgnoreCase)) return parts[1];
-            return parts.FirstOrDefault();
-        }
-
-        /// <summary>
-        /// The ExtractFilePath
-        /// </summary>
-        /// <param name="value">The value<see cref="string?"/></param>
-        /// <returns>The <see cref="string?"/></returns>
-        private string? ExtractFilePath(string? value)
-        {
-            if (string.IsNullOrEmpty(value)) return null;
-
-            if (value.Trim().StartsWith("{"))
-            {
-                var json = JsonSerializer.Deserialize<JsonElement>(value);
-                return json.TryGetProperty("src", out var src) ? src.GetString() : null;
-            }
-
-            return value;
         }
 
         /// <summary>

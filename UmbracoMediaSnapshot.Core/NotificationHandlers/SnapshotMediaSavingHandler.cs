@@ -3,10 +3,8 @@
     using Azure;
     using Azure.Storage.Blobs;
     using Azure.Storage.Blobs.Models;
-    using Configuration;
-    using Microsoft.Extensions.Options;
+    using Services;
     using System.Collections.Concurrent;
-    using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
     using Umbraco.Cms.Core.Events;
@@ -36,19 +34,6 @@
         internal static readonly ConcurrentDictionary<int, byte> ForceSnapshotMediaIds = new();
 
         /// <summary>
-        /// Defines the TARGET_MEDIA_TYPES
-        /// </summary>
-        private static readonly string[] TARGET_MEDIA_TYPES = new[]
-        {
-            "umbracoMediaArticle",
-            "umbracoMediaAudio",
-            "File",
-            "Image",
-            "umbracoMediaVectorGraphics",
-            "umbracoMediaVideo"
-        };
-
-        /// <summary>
         /// Defines the _backofficeSecurityAccessor
         /// </summary>
         private readonly IBackOfficeSecurityAccessor _backofficeSecurityAccessor;
@@ -59,48 +44,32 @@
         private readonly IMediaService _mediaService;
 
         /// <summary>
-        /// Defines the _configuration
-        /// </summary>
-        private readonly IConfiguration _configuration;
-
-        /// <summary>
         /// Defines the _logger
         /// </summary>
         private readonly ILogger<SnapshotMediaSavingHandler> _logger;
 
         /// <summary>
-        /// Defines the _settings
+        /// Defines the _blobService
         /// </summary>
-        private readonly MediaSnapshotSettings _settings;
-
-        /// <summary>
-        /// Defines the _blobServiceClient
-        /// </summary>
-        private readonly BlobServiceClient _blobServiceClient;
+        private readonly ISnapshotBlobService _blobService;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SnapshotMediaSavingHandler"/> class.
         /// </summary>
         /// <param name="backofficeSecurityAccessor">The backofficeSecurityAccessor<see cref="IBackOfficeSecurityAccessor"/></param>
         /// <param name="mediaService">The mediaService<see cref="IMediaService"/></param>
-        /// <param name="configuration">The configuration<see cref="IConfiguration"/></param>
-        /// <param name="settings">The settings<see cref="IOptions{MediaSnapshotSettings}"/></param>
         /// <param name="logger">The logger<see cref="ILogger{SnapshotMediaSavingHandler}"/></param>
-        /// <param name="blobServiceClient">The blobServiceClient<see cref="BlobServiceClient"/></param>
+        /// <param name="blobService">The blobService<see cref="ISnapshotBlobService"/></param>
         public SnapshotMediaSavingHandler(
             IBackOfficeSecurityAccessor backofficeSecurityAccessor,
             IMediaService mediaService,
-            IConfiguration configuration,
-            IOptions<MediaSnapshotSettings> settings,
             ILogger<SnapshotMediaSavingHandler> logger,
-            BlobServiceClient blobServiceClient)
+            ISnapshotBlobService blobService)
         {
             _backofficeSecurityAccessor = backofficeSecurityAccessor;
             _mediaService = mediaService;
-            _configuration = configuration;
-            _settings = settings.Value;
             _logger = logger;
-            _blobServiceClient = blobServiceClient;
+            _blobService = blobService;
         }
 
         /// <summary>
@@ -111,20 +80,17 @@
         /// <returns>The <see cref="Task"/></returns>
         public async Task HandleAsync(MediaSavingNotification notification, CancellationToken cancellationToken)
         {
-            var connectionString = _configuration.GetValue<string>("Umbraco:Storage:AzureBlob:Media:ConnectionString");
-            var mediaContainerName = _configuration.GetValue<string>("Umbraco:Storage:AzureBlob:Media:ContainerName") ?? "umbraco";
-
             // 1. Snapshot Client (Target)
-            var snapshotContainer = _blobServiceClient.GetBlobContainerClient("umbraco-snapshots");
+            var snapshotContainer = _blobService.GetSnapshotContainer();
             await snapshotContainer.CreateIfNotExistsAsync(PublicAccessType.None, cancellationToken: cancellationToken);
 
             // 2. Original Media Client (Source)
-            var mediaContainer = _blobServiceClient.GetBlobContainerClient(mediaContainerName);
+            var mediaContainer = _blobService.GetMediaContainer();
 
             foreach (var media in notification.SavedEntities)
             {
                 // Only process supported media types
-                if (!TARGET_MEDIA_TYPES.Contains(media.ContentType.Alias))
+                if (!_blobService.IsTargetMediaType(media.ContentType.Alias))
                 {
                     _logger.LogDebug("Skipping media {Id} with unsupported content type '{ContentType}'",
                         media.Id, media.ContentType.Alias);
@@ -172,7 +138,7 @@
                     }
 
                     // FULL PATH: "media/if3f2s40/file.csv" (the old file still in the media container)
-                    string? oldBlobPath = GetRawBlobPath(oldUmbracoFileValue);
+                    string? oldBlobPath = _blobService.GetRawBlobPath(oldUmbracoFileValue);
                     if (string.IsNullOrEmpty(oldBlobPath))
                     {
                         _logger.LogDebug("Could not parse old blob path for media {Id}, skipping snapshot.", media.Id);
@@ -277,66 +243,13 @@
 
                     // Clean up old snapshots if configured
                     folderPrefix = finalVersionPath.Substring(0, finalVersionPath.LastIndexOf('/') + 1);
-                    await CleanupOldSnapshotsAsync(snapshotContainer, folderPrefix, cancellationToken);
+                    await _blobService.CleanupOldSnapshotsAsync(folderPrefix, cancellationToken);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Versioning failed for Media {Id} ({ContentType})",
                         media.Id, media.ContentType.Alias);
                 }
-            }
-        }
-
-        /// <summary>
-        /// The GetRawBlobPath
-        /// </summary>
-        /// <param name="value">The value<see cref="string"/></param>
-        /// <returns>The <see cref="string?"/></returns>
-        private string? GetRawBlobPath(string value)
-        {
-            string? rawPath = null;
-            if (value.Trim().StartsWith("{"))
-            {
-                try
-                {
-                    var json = JsonSerializer.Deserialize<JsonElement>(value);
-                    if (json.TryGetProperty("src", out var src)) rawPath = src.GetString();
-                }
-                catch { return null; }
-            }
-            else { rawPath = value; }
-
-            // "media/if3f2s40/file.csv"
-            return rawPath?.TrimStart('/');
-        }
-
-        /// <summary>
-        /// The CleanupOldSnapshotsAsync
-        /// </summary>
-        /// <param name="snapshotContainer">The snapshotContainer<see cref="BlobContainerClient"/></param>
-        /// <param name="folderPath">The folderPath<see cref="string"/></param>
-        /// <param name="cancellationToken">The cancellationToken<see cref="CancellationToken"/></param>
-        /// <returns>The <see cref="Task"/></returns>
-        private async Task CleanupOldSnapshotsAsync(BlobContainerClient snapshotContainer, string folderPath, CancellationToken cancellationToken)
-        {
-            if (!_settings.EnableAutomaticCleanup) return;
-
-            var snapshots = new List<BlobItem>();
-            await foreach (var blob in snapshotContainer.GetBlobsAsync(prefix: folderPath, cancellationToken: cancellationToken))
-            {
-                snapshots.Add(blob);
-            }
-
-            // Sort by last modified descending
-            var toDelete = snapshots
-                .OrderByDescending(b => b.Properties.LastModified)
-                .Skip(_settings.MaxSnapshotsPerMedia)
-                .ToList();
-
-            foreach (var blob in toDelete)
-            {
-                _logger.LogInformation("Deleting old snapshot: {BlobName}", blob.Name);
-                await snapshotContainer.DeleteBlobIfExistsAsync(blob.Name, cancellationToken: cancellationToken);
             }
         }
     }

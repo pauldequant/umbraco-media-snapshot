@@ -5,6 +5,7 @@
     using Microsoft.Extensions.DependencyInjection;
     using Migrations;
     using NotificationHandlers;
+    using Services;
     using Umbraco.Cms.Core.Composing;
     using Umbraco.Cms.Core.DependencyInjection;
     using Umbraco.Cms.Core.Notifications;
@@ -31,6 +32,8 @@
                     ? throw new InvalidOperationException("Azure Blob Storage connection string is not configured at 'Umbraco:Storage:AzureBlob:Media:ConnectionString'.")
                     : new BlobServiceClient(connectionString);
             });
+
+            builder.Services.AddSingleton<ISnapshotBlobService, SnapshotBlobService>();
 
             builder.PackageMigrationPlans().Add<UmbracoMediaSnapshotMigrationPlan>();
 
