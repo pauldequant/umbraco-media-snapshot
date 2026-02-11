@@ -66,11 +66,12 @@
         /// The GetVersions
         /// </summary>
         /// <param name="mediaKey">The mediaKey<see cref="Guid"/></param>
+        /// <param name="cancellationToken">The cancellationToken<see cref="CancellationToken"/></param>
         /// <returns>The <see cref="Task{IActionResult}"/></returns>
         [HttpGet("versions/{mediaKey:guid}")]
         [ProducesResponseType(typeof(IEnumerable<SnapshotVersionModel>), 200)]
         [ProducesResponseType(typeof(ProblemDetails), 500)]
-        public async Task<IActionResult> GetVersions(Guid mediaKey)
+        public async Task<IActionResult> GetVersions(Guid mediaKey, CancellationToken cancellationToken)
         {
             try
             {
@@ -84,12 +85,12 @@
 
                 var snapshotContainer = _blobService.GetSnapshotContainer();
 
-                if (!await snapshotContainer.ExistsAsync()) return Ok(Enumerable.Empty<SnapshotVersionModel>());
+                if (!await snapshotContainer.ExistsAsync(cancellationToken)) return Ok(Enumerable.Empty<SnapshotVersionModel>());
 
                 var versions = new List<SnapshotVersionModel>();
                 var prefix = folderPath.EndsWith("/") ? folderPath : folderPath + "/";
 
-                await foreach (var blobItem in snapshotContainer.GetBlobsAsync(prefix: prefix, traits: BlobTraits.Metadata))
+                await foreach (var blobItem in snapshotContainer.GetBlobsAsync(prefix: prefix, traits: BlobTraits.Metadata, cancellationToken: cancellationToken))
                 {
                     var blobClient = snapshotContainer.GetBlobClient(blobItem.Name);
 
@@ -138,12 +139,13 @@
         /// The RestoreSnapshot
         /// </summary>
         /// <param name="request">The request<see cref="RestoreSnapshotRequest"/></param>
+        /// <param name="cancellationToken">The cancellationToken<see cref="CancellationToken"/></param>
         /// <returns>The <see cref="Task{IActionResult}"/></returns>
         [HttpPost("restore")]
         [ProducesResponseType(typeof(RestoreResultModel), 200)]
         [ProducesResponseType(typeof(ProblemDetails), 400)]
         [ProducesResponseType(typeof(ProblemDetails), 500)]
-        public async Task<IActionResult> RestoreSnapshot([FromBody] RestoreSnapshotRequest request)
+        public async Task<IActionResult> RestoreSnapshot([FromBody] RestoreSnapshotRequest request, CancellationToken cancellationToken)
         {
             try
             {
@@ -170,25 +172,25 @@
                 var snapshotBlobPath = $"{folderPath}/{request.SnapshotName}";
                 var snapshotBlob = snapshotContainer.GetBlobClient(snapshotBlobPath);
 
-                if (!await snapshotBlob.ExistsAsync())
+                if (!await snapshotBlob.ExistsAsync(cancellationToken))
                     return NotFound("Snapshot file not found");
 
-                var downloadResult = await snapshotBlob.DownloadAsync();
-                var snapshotProperties = await snapshotBlob.GetPropertiesAsync();
+                var downloadResult = await snapshotBlob.DownloadAsync(cancellationToken);
+                var snapshotProperties = await snapshotBlob.GetPropertiesAsync(cancellationToken: cancellationToken);
 
                 // Buffer the content so it can be read multiple times (upload + image dimensions)
                 using var memoryStream = new MemoryStream();
-                await downloadResult.Value.Content.CopyToAsync(memoryStream);
+                await downloadResult.Value.Content.CopyToAsync(memoryStream, cancellationToken);
                 memoryStream.Position = 0;
 
                 // Replace the media blob in Azure storage
                 var originalFileName = StripTimestampFromFilename(request.SnapshotName);
                 var newFilePath = $"media/{folderPath}/{originalFileName}";
 
-                await ReplaceMediaBlobAsync(mediaContainer, currentFilePath.TrimStart('/'), newFilePath, memoryStream, snapshotProperties.Value);
+                await ReplaceMediaBlobAsync(mediaContainer, currentFilePath.TrimStart('/'), newFilePath, memoryStream, snapshotProperties.Value, cancellationToken);
 
                 // Tag the snapshot blob with restore metadata
-                await MarkSnapshotAsRestoredAsync(snapshotBlob, snapshotProperties.Value, request.SnapshotName);
+                await MarkSnapshotAsRestoredAsync(snapshotBlob, snapshotProperties.Value, request.SnapshotName, cancellationToken);
 
                 // Update all Umbraco media properties (umbracoFile, umbracoBytes, dimensions)
                 var newSrc = $"/media/{folderPath}/{originalFileName}";
@@ -230,37 +232,36 @@
         /// <param name="newBlobPath">The newBlobPath<see cref="string"/></param>
         /// <param name="content">The content<see cref="MemoryStream"/></param>
         /// <param name="snapshotProperties">The snapshotProperties<see cref="BlobProperties"/></param>
+        /// <param name="cancellationToken">The cancellationToken<see cref="CancellationToken"/></param>
         /// <returns>The <see cref="Task"/></returns>
         private async Task ReplaceMediaBlobAsync(
             BlobContainerClient mediaContainer,
             string currentBlobPath,
             string newBlobPath,
             MemoryStream content,
-            BlobProperties snapshotProperties)
+            BlobProperties snapshotProperties,
+            CancellationToken cancellationToken)
         {
-            // Delete the old file if it's at a different path than the restored one
             if (!currentBlobPath.Equals(newBlobPath, StringComparison.OrdinalIgnoreCase))
             {
                 var currentBlob = mediaContainer.GetBlobClient(currentBlobPath);
-                if (await currentBlob.ExistsAsync())
+                if (await currentBlob.ExistsAsync(cancellationToken))
                 {
-                    await currentBlob.DeleteAsync();
+                    await currentBlob.DeleteAsync(cancellationToken: cancellationToken);
                     _logger.LogInformation("Deleted old media file: {OldPath}", currentBlobPath);
                 }
             }
 
-            // Upload the snapshot content to the new media location
             var newBlob = mediaContainer.GetBlobClient(newBlobPath);
             content.Position = 0;
-            await newBlob.UploadAsync(content, overwrite: true);
+            await newBlob.UploadAsync(content, overwrite: true, cancellationToken);
 
-            // Preserve the original content type
             if (!string.IsNullOrEmpty(snapshotProperties.ContentType))
             {
                 await newBlob.SetHttpHeadersAsync(new BlobHttpHeaders
                 {
                     ContentType = snapshotProperties.ContentType
-                });
+                }, cancellationToken: cancellationToken);
             }
         }
 
@@ -270,18 +271,20 @@
         /// <param name="snapshotBlob">The snapshotBlob<see cref="BlobClient"/></param>
         /// <param name="snapshotProperties">The snapshotProperties<see cref="BlobProperties"/></param>
         /// <param name="snapshotName">The snapshotName<see cref="string"/></param>
+        /// <param name="cancellationToken">The cancellationToken<see cref="CancellationToken"/></param>
         /// <returns>The <see cref="Task"/></returns>
         private static async Task MarkSnapshotAsRestoredAsync(
             BlobClient snapshotBlob,
             BlobProperties snapshotProperties,
-            string snapshotName)
+            string snapshotName,
+            CancellationToken cancellationToken)
         {
             var restoredMeta = new Dictionary<string, string>(snapshotProperties.Metadata)
             {
                 ["RestoredFrom"] = snapshotName,
                 ["RestoredDate"] = DateTime.UtcNow.ToString("O")
             };
-            await snapshotBlob.SetMetadataAsync(restoredMeta);
+            await snapshotBlob.SetMetadataAsync(restoredMeta, cancellationToken: cancellationToken);
         }
 
         /// <summary>
