@@ -3,6 +3,7 @@
     using Azure;
     using Azure.Storage.Blobs;
     using Azure.Storage.Blobs.Models;
+    using Configuration;
     using Microsoft.Extensions.Options;
     using System.Text.Json;
     using System.Threading;
@@ -11,7 +12,6 @@
     using Umbraco.Cms.Core.Notifications;
     using Umbraco.Cms.Core.Security;
     using Umbraco.StorageProviders.AzureBlob.IO;
-    using UmbracoMediaSnapshot.Core.Configuration;
 
     /// <summary>
     /// Defines the <see cref="SnapshotMediaSavedHandler" />
@@ -135,7 +135,7 @@
 
                     // If a restore is in progress, skip the duplicate check entirely —
                     // the restored file must always appear as the latest snapshot.
-                    bool forceSnapshot = SnapshotMediaSavingHandler.ForceSnapshotMediaIds.Remove(media.Id);
+                    bool forceSnapshot = SnapshotMediaSavingHandler.ForceSnapshotMediaIds.TryRemove(media.Id, out _);
 
                     // Check if the current file already has an identical snapshot.
                     string folderPrefix = string.IsNullOrEmpty(directory) ? "" : $"{directory}/";

@@ -288,11 +288,11 @@
                 }
 
                 // Suppress the saving handler so it does not create a duplicate snapshot
-                SnapshotMediaSavingHandler.SuppressedMediaIds.Add(media.Id);
+                SnapshotMediaSavingHandler.SuppressedMediaIds.TryAdd(media.Id, 0);
 
                 // Force the saved handler to create a snapshot even if the file
                 // matches an existing one (the restored file IS a previous snapshot)
-                SnapshotMediaSavingHandler.ForceSnapshotMediaIds.Add(media.Id);
+                SnapshotMediaSavingHandler.ForceSnapshotMediaIds.TryAdd(media.Id, 0);
 
                 // Save the media item
                 _mediaService.Save(media);

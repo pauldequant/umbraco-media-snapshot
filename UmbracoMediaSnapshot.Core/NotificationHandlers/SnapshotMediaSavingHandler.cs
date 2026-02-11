@@ -4,6 +4,7 @@
     using Azure.Storage.Blobs;
     using Azure.Storage.Blobs.Models;
     using Microsoft.Extensions.Options;
+    using System.Collections.Concurrent;
     using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
@@ -25,14 +26,14 @@
         /// The restore endpoint adds an Id here before calling <c>IMediaService.Save</c>
         /// so that the save does not create a redundant snapshot.
         /// </summary>
-        internal static readonly HashSet<int> SuppressedMediaIds = new();
+        internal static readonly ConcurrentDictionary<int, byte> SuppressedMediaIds = new();
 
         /// <summary>
         /// Media items whose Id is in this set will bypass the duplicate check
         /// in the Saved handler. The restore endpoint adds an Id here so that
         /// the restored file always appears as the latest snapshot.
         /// </summary>
-        internal static readonly HashSet<int> ForceSnapshotMediaIds = new();
+        internal static readonly ConcurrentDictionary<int, byte> ForceSnapshotMediaIds = new();
 
         /// <summary>
         /// Defines the TARGET_MEDIA_TYPES
@@ -134,7 +135,7 @@
                 }
 
                 // Skip if the restore endpoint has suppressed snapshotting for this media
-                if (SuppressedMediaIds.Remove(media.Id))
+                if (SuppressedMediaIds.TryRemove(media.Id, out _))
                 {
                     _logger.LogDebug("Snapshot suppressed for media {Id} (restore in progress).", media.Id);
                     continue;
