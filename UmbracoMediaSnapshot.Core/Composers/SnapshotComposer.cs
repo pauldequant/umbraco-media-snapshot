@@ -1,4 +1,6 @@
-﻿namespace UmbracoMediaSnapshot.Core.Composers
+﻿using UmbracoMediaSnapshot.Core.Configuration;
+
+namespace UmbracoMediaSnapshot.Core.Composers
 {
     using Umbraco.Cms.Core.Composing;
     using Umbraco.Cms.Core.DependencyInjection;
@@ -18,6 +20,8 @@
         /// <param name="builder">The builder<see cref="IUmbracoBuilder"/></param>
         public void Compose(IUmbracoBuilder builder)
         {
+            builder.Services.Configure<MediaSnapshotSettings>(builder.Config.GetSection("UmbracoMediaSnapshot"));
+
             builder.PackageMigrationPlans().Add<UmbracoMediaSnapshotMigrationPlan>();
 
             builder.AddNotificationAsyncHandler<MediaSavingNotification, SnapshotMediaSavingHandler>();

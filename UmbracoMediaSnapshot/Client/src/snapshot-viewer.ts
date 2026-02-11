@@ -146,8 +146,9 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
     /**
      * Handles page change from the pagination component
      */
-    private _onPageChange(event: CustomEvent) {
-        this._currentPage = event.detail.page;
+    private _onPageChange(event: Event) {
+        const target = event.target as HTMLElement & { current: number };
+        this._currentPage = target.current;
     }
 
     /**

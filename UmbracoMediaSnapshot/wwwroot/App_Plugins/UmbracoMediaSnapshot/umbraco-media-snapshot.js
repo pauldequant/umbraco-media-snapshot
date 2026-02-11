@@ -4,10 +4,10 @@ import { UMB_WORKSPACE_CONTEXT as m } from "@umbraco-cms/backoffice/workspace";
 import { UMB_AUTH_CONTEXT as v } from "@umbraco-cms/backoffice/auth";
 import { UMB_NOTIFICATION_CONTEXT as _ } from "@umbraco-cms/backoffice/notification";
 import { UMB_MODAL_MANAGER_CONTEXT as f, UMB_CONFIRM_MODAL as b } from "@umbraco-cms/backoffice/modal";
-var w = Object.defineProperty, x = Object.getOwnPropertyDescriptor, s = (e, a, t, i) => {
-  for (var o = i > 1 ? void 0 : i ? x(a, t) : a, u = e.length - 1, c; u >= 0; u--)
-    (c = e[u]) && (o = (i ? c(a, t, o) : c(o)) || o);
-  return i && o && w(a, t, o), o;
+var w = Object.defineProperty, x = Object.getOwnPropertyDescriptor, s = (e, i, a, t) => {
+  for (var o = t > 1 ? void 0 : t ? x(i, a) : i, u = e.length - 1, c; u >= 0; u--)
+    (c = e[u]) && (o = (t ? c(i, a, o) : c(o)) || o);
+  return t && o && w(i, a, o), o;
 };
 let n = class extends g(d) {
   constructor() {
@@ -18,9 +18,9 @@ let n = class extends g(d) {
     }), this.consumeContext(f, (e) => {
       this._modalManagerContext = e;
     }), this.consumeContext(m, (e) => {
-      const a = e;
-      a.unique && this.observe(a.unique, (t) => {
-        t && t !== this._mediaKey && (this._mediaKey = t.toString(), this._currentPage = 1, this._fetchVersions(this._mediaKey));
+      const i = e;
+      i.unique && this.observe(i.unique, (a) => {
+        a && a !== this._mediaKey && (this._mediaKey = a.toString(), this._currentPage = 1, this._fetchVersions(this._mediaKey));
       });
     });
   }
@@ -31,26 +31,26 @@ let n = class extends g(d) {
    */
   async _fetchVersions(e) {
     this._loading = !0;
-    const a = await this._authContext?.getLatestToken();
-    if (!a) {
+    const i = await this._authContext?.getLatestToken();
+    if (!i) {
       console.error("No authentication token available."), this._notificationContext?.peek("danger", {
         data: { headline: "Authentication Error", message: "No authentication token available." }
       }), this._loading = !1;
       return;
     }
     try {
-      const t = `/umbraco/management/api/v1/snapshot/versions/${e}`, i = await fetch(t, {
+      const a = `/umbraco/management/api/v1/snapshot/versions/${e}`, t = await fetch(a, {
         method: "GET",
         headers: {
-          Authorization: `Bearer ${a}`,
+          Authorization: `Bearer ${i}`,
           "Content-Type": "application/json"
         }
       });
-      i.ok ? this._versions = await i.json() : i.status === 401 && (console.error("Unauthorized: The session may have expired."), this._notificationContext?.peek("danger", {
+      t.ok ? this._versions = await t.json() : t.status === 401 && (console.error("Unauthorized: The session may have expired."), this._notificationContext?.peek("danger", {
         data: { headline: "Unauthorized", message: "The session may have expired." }
       }));
-    } catch (t) {
-      console.error("Failed to fetch snapshots:", t), this._notificationContext?.peek("danger", {
+    } catch (a) {
+      console.error("Failed to fetch snapshots:", a), this._notificationContext?.peek("danger", {
         data: { headline: "Error", message: "Failed to fetch snapshots." }
       });
     } finally {
@@ -74,14 +74,15 @@ let n = class extends g(d) {
    * Handles page change from the pagination component
    */
   _onPageChange(e) {
-    this._currentPage = e.detail.page;
+    const i = e.target;
+    this._currentPage = i.current;
   }
   /**
    * Checks if a filename is an image based on extension
    */
   _isImage(e) {
-    const a = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg"], t = e.substring(e.lastIndexOf(".")).toLowerCase();
-    return a.includes(t);
+    const i = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg"], a = e.substring(e.lastIndexOf(".")).toLowerCase();
+    return i.includes(a);
   }
   /**
    * Opens the image preview panel
@@ -107,7 +108,7 @@ let n = class extends g(d) {
       console.error("Modal manager context not available");
       return;
     }
-    const a = this._modalManagerContext.open(this, b, {
+    const i = this._modalManagerContext.open(this, b, {
       data: {
         headline: "Restore File Version",
         content: r`
@@ -125,13 +126,13 @@ let n = class extends g(d) {
       }
     });
     try {
-      await a.onSubmit();
+      await i.onSubmit();
     } catch {
       return;
     }
     this._isRestoring = !0;
-    const t = await this._authContext?.getLatestToken();
-    if (!t) {
+    const a = await this._authContext?.getLatestToken();
+    if (!a) {
       this._notificationContext?.peek("danger", {
         data: { headline: "Authentication Error", message: "No authentication token available." }
       }), this._isRestoring = !1;
@@ -141,7 +142,7 @@ let n = class extends g(d) {
       const o = await fetch("/umbraco/management/api/v1/snapshot/restore", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${t}`,
+          Authorization: `Bearer ${a}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
@@ -173,8 +174,8 @@ let n = class extends g(d) {
           }
         });
       }
-    } catch (i) {
-      console.error("Failed to restore snapshot:", i), this._notificationContext?.peek("danger", {
+    } catch (t) {
+      console.error("Failed to restore snapshot:", t), this._notificationContext?.peek("danger", {
         data: {
           headline: "Error",
           message: "An error occurred while restoring the snapshot. Please try again."
@@ -187,13 +188,13 @@ let n = class extends g(d) {
   /**
    * Renders the status tag for a snapshot version based on its metadata
    */
-  _renderStatus(e, a) {
+  _renderStatus(e, i) {
     return e.isRestored ? r`
                 <uui-tag look="primary" color="positive">
                     <uui-icon name="icon-refresh"></uui-icon>
                     Restored ${e.restoredDate ? this._formatDate(e.restoredDate) : ""}
                 </uui-tag>
-            ` : a === 0 ? r`
+            ` : i === 0 ? r`
                 <uui-tag look="primary" color="default">
                     <uui-icon name="icon-check"></uui-icon>
                     Latest
@@ -216,7 +217,7 @@ let n = class extends g(d) {
                     </div>
                 </uui-box>
             `;
-    const e = this._versions.length === 1, a = this._pagedVersions, t = (this._currentPage - 1) * this._pageSize;
+    const e = this._versions.length === 1, i = this._pagedVersions, a = (this._currentPage - 1) * this._pageSize;
     return r`
             <div class="snapshot-container">
                 <uui-table>
@@ -228,30 +229,30 @@ let n = class extends g(d) {
                         <uui-table-head-cell>Actions</uui-table-head-cell>
                     </uui-table-head>
 
-                    ${a.map((i, o) => r`
+                    ${i.map((t, o) => r`
                         <uui-table-row>
                             <uui-table-cell>
-                                ${this._isImage(i.name) ? r`
+                                ${this._isImage(t.name) ? r`
                                         <button 
                                             class="filename-link" 
-                                            @click="${() => this._openImagePreview(i)}"
+                                            @click="${() => this._openImagePreview(t)}"
                                             title="Click to preview image">
                                             <uui-icon name="icon-picture"></uui-icon>
-                                            ${i.name}
+                                            ${t.name}
                                         </button>
-                                    ` : r`<span>${i.name}</span>`}
+                                    ` : r`<span>${t.name}</span>`}
                             </uui-table-cell>
-                            <uui-table-cell>${this._formatDate(i.date)}</uui-table-cell>
-                            <uui-table-cell>${i.uploader.replace(/_/g, " ")}</uui-table-cell>
+                            <uui-table-cell>${this._formatDate(t.date)}</uui-table-cell>
+                            <uui-table-cell>${t.uploader.replace(/_/g, " ")}</uui-table-cell>
                             <uui-table-cell>
-                                ${this._renderStatus(i, t + o)}
+                                ${this._renderStatus(t, a + o)}
                             </uui-table-cell>
                             <uui-table-cell>
                                 <div style="display: flex; gap: 8px;">
                                     <uui-button 
                                         look="secondary" 
                                         compact 
-                                        href="${i.url}" 
+                                        href="${t.url}" 
                                         target="_blank">
                                         <uui-icon name="icon-download-alt"></uui-icon> Download
                                     </uui-button>
@@ -259,9 +260,9 @@ let n = class extends g(d) {
                                         look="primary" 
                                         color="positive"
                                         compact
-                                        ?disabled="${e || this._isRestoring || t + o === 0}"
-                                        title="${e ? "Cannot restore when only one version exists" : t + o === 0 ? "This is already the latest version" : "Restore this version"}"
-                                        @click="${() => this._restoreVersion(i)}">
+                                        ?disabled="${e || this._isRestoring || a + o === 0}"
+                                        title="${e ? "Cannot restore when only one version exists" : a + o === 0 ? "This is already the latest version" : "Restore this version"}"
+                                        @click="${() => this._restoreVersion(t)}">
                                         <uui-icon name="icon-refresh"></uui-icon> ${this._isRestoring ? "Restoring..." : "Restore"}
                                     </uui-button>
                                 </div>
