@@ -9,6 +9,7 @@
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Options;
+    using Models;
     using NotificationHandlers;
     using SixLabors.ImageSharp;
     using System.Text.Json;
@@ -134,12 +135,9 @@
         }
 
         /// <summary>
-        /// Restores a snapshot version as the current media file.
-        /// The current file is snapshotted first (Copy-on-Write), then overwritten
-        /// with the selected snapshot. The saving handler is suppressed to avoid
-        /// creating a duplicate snapshot entry
+        /// The RestoreSnapshot
         /// </summary>
-        /// <param name="request">The restore request containing mediaKey and snapshotName</param>
+        /// <param name="request">The request<see cref="RestoreSnapshotRequest"/></param>
         /// <returns>The <see cref="Task{IActionResult}"/></returns>
         [HttpPost("restore")]
         [ProducesResponseType(typeof(RestoreResultModel), 200)]
@@ -324,11 +322,10 @@
         }
 
         /// <summary>
-        /// Strips the timestamp prefix from a snapshot filename
-        /// Format: 20260209_155612_sample-document.pdf -> sample-document.pdf
+        /// The StripTimestampFromFilename
         /// </summary>
-        /// <param name="filename">The filename with timestamp prefix</param>
-        /// <returns>The original filename without timestamp</returns>
+        /// <param name="filename">The filename<see cref="string"/></param>
+        /// <returns>The <see cref="string"/></returns>
         private string StripTimestampFromFilename(string filename)
         {
             // Pattern: YYYYMMDD_HHMMSS_originalfilename.ext
@@ -366,10 +363,10 @@
         }
 
         /// <summary>
-        /// Extracts the full file path from umbracoFile value
+        /// The ExtractFilePath
         /// </summary>
-        /// <param name="value">The umbracoFile JSON or path</param>
-        /// <returns>The full file path</returns>
+        /// <param name="value">The value<see cref="string?"/></param>
+        /// <returns>The <see cref="string?"/></returns>
         private string? ExtractFilePath(string? value)
         {
             if (string.IsNullOrEmpty(value)) return null;
@@ -384,11 +381,11 @@
         }
 
         /// <summary>
-        /// Determines if the file is an image based on extension and content type
+        /// The IsImageFile
         /// </summary>
-        /// <param name="filename">The filename</param>
-        /// <param name="contentType">The content type</param>
-        /// <returns>True if the file is an image</returns>
+        /// <param name="filename">The filename<see cref="string"/></param>
+        /// <param name="contentType">The contentType<see cref="string?"/></param>
+        /// <returns>The <see cref="bool"/></returns>
         private bool IsImageFile(string filename, string? contentType)
         {
             var imageExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg" };
@@ -401,10 +398,10 @@
         }
 
         /// <summary>
-        /// Gets image dimensions from a stream
+        /// The GetImageDimensions
         /// </summary>
-        /// <param name="stream">The image stream</param>
-        /// <returns>Image dimensions or null if unable to read</returns>
+        /// <param name="stream">The stream<see cref="Stream"/></param>
+        /// <returns>The <see cref="(int Width, int Height)?"/></returns>
         private (int Width, int Height)? GetImageDimensions(Stream stream)
         {
             try
@@ -420,89 +417,4 @@
         }
     }
 
-    /// <summary>
-    /// Defines the <see cref="SnapshotVersionModel" />
-    /// </summary>
-    public class SnapshotVersionModel
-    {
-        /// <summary>
-        /// Gets or sets the Name
-        /// </summary>
-        public string Name { get; set; } = string.Empty;
-
-        /// <summary>
-        /// Gets or sets the Date
-        /// </summary>
-        public DateTime Date { get; set; }
-
-        /// <summary>
-        /// Gets or sets the Size
-        /// </summary>
-        public long Size { get; set; }
-
-        /// <summary>
-        /// Gets or sets the Url
-        /// </summary>
-        public string Url { get; set; } = string.Empty;
-
-        /// <summary>
-        /// Gets or sets the Uploader
-        /// </summary>
-        public string Uploader { get; set; } = string.Empty;
-
-        /// <summary>
-        /// Gets or sets a value indicating whether IsRestored
-        /// Gets or sets whether this is a restored version
-        /// </summary>
-        public bool IsRestored { get; set; }
-
-        /// <summary>
-        /// Gets or sets the date when this was restored (if applicable)
-        /// </summary>
-        public DateTime? RestoredDate { get; set; }
-
-        /// <summary>
-        /// Gets or sets the original snapshot this was restored from
-        /// </summary>
-        public string? RestoredFrom { get; set; }
-    }
-
-    /// <summary>
-    /// Request model for restoring a snapshot
-    /// </summary>
-    public class RestoreSnapshotRequest
-    {
-        /// <summary>
-        /// Gets or sets the MediaKey
-        /// </summary>
-        public Guid MediaKey { get; set; }
-
-        /// <summary>
-        /// Gets or sets the SnapshotName (filename in the snapshots container)
-        /// </summary>
-        public string SnapshotName { get; set; } = string.Empty;
-    }
-
-    /// <summary>
-    /// Result model for restore operation
-    /// </summary>
-    public class RestoreResultModel
-    {
-        /// <summary>
-        /// Gets or sets a value indicating whether Success
-        /// Gets or sets whether the restore was successful
-        /// </summary>
-        public bool Success { get; set; }
-
-        /// <summary>
-        /// Gets or sets the result message
-        /// </summary>
-        public string Message { get; set; } = string.Empty;
-
-        /// <summary>
-        /// Gets or sets the RestoredDate
-        /// Gets or sets when the restore occurred
-        /// </summary>
-        public DateTime RestoredDate { get; set; }
-    }
 }
