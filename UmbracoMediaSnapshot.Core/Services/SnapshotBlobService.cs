@@ -194,14 +194,22 @@
                 snapshots.Add(blob);
             }
 
-            var toDelete = snapshots
+            var ordered = snapshots
                 .OrderByDescending(b => b.Properties.LastModified)
-                .Skip(_settings.MaxSnapshotsPerMedia)
+                .ToList();
+
+            var ageCutoff = DateTimeOffset.UtcNow.AddDays(-_settings.MaxSnapshotAgeDays);
+
+            var toDelete = ordered
+                .Where((blob, index) =>
+                    index >= _settings.MaxSnapshotsPerMedia
+                    || blob.Properties.LastModified < ageCutoff)
                 .ToList();
 
             foreach (var blob in toDelete)
             {
-                _logger.LogInformation("Deleting old snapshot: {BlobName}", blob.Name);
+                var reason = blob.Properties.LastModified < ageCutoff ? "expired" : "over limit";
+                _logger.LogInformation("Deleting {Reason} snapshot: {BlobName}", reason, blob.Name);
                 await snapshotContainer.DeleteBlobIfExistsAsync(blob.Name, cancellationToken: cancellationToken);
             }
         }
