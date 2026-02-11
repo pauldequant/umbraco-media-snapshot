@@ -4,22 +4,24 @@
     using Azure.Storage.Blobs;
     using Azure.Storage.Blobs.Models;
     using Azure.Storage.Sas;
+    using Configuration;
+    using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Options;
+    using NotificationHandlers;
     using SixLabors.ImageSharp;
     using System.Text.Json;
     using Umbraco.Cms.Api.Management.Controllers;
     using Umbraco.Cms.Api.Management.Routing;
     using Umbraco.Cms.Core.Services;
-    using UmbracoMediaSnapshot.Core.Configuration;
-    using UmbracoMediaSnapshot.Core.NotificationHandlers;
 
     /// <summary>
     /// Defines the <see cref="SnapshotApiController" />
     /// </summary>
     [VersionedApiBackOfficeRoute("snapshot")]
     [ApiExplorerSettings(GroupName = "Snapshots")]
+    [Authorize(Policy = Umbraco.Cms.Web.Common.Authorization.AuthorizationPolicies.SectionAccessMedia)]
     public class SnapshotApiController : ManagementApiControllerBase
     {
         /// <summary>
@@ -135,7 +137,7 @@
         /// Restores a snapshot version as the current media file.
         /// The current file is snapshotted first (Copy-on-Write), then overwritten
         /// with the selected snapshot. The saving handler is suppressed to avoid
-        /// creating a duplicate snapshot entry.
+        /// creating a duplicate snapshot entry
         /// </summary>
         /// <param name="request">The restore request containing mediaKey and snapshotName</param>
         /// <returns>The <see cref="Task{IActionResult}"/></returns>
@@ -147,6 +149,9 @@
         {
             try
             {
+                if (request.SnapshotName.Contains("..") || request.SnapshotName.Contains('/') || request.SnapshotName.Contains('\\'))
+                    return BadRequest("Invalid snapshot name");
+
                 var media = _mediaService.GetById(request.MediaKey);
                 if (media == null) return NotFound("Media item not found");
 
