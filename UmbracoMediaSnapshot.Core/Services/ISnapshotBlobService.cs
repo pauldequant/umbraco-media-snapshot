@@ -27,6 +27,11 @@
         BlobContainerClient GetMediaContainer();
 
         /// <summary>
+        /// Returns the set of media type aliases that support snapshotting.
+        /// </summary>
+        IReadOnlyCollection<string> TargetMediaTypes { get; }
+
+        /// <summary>
         /// Determines whether the given media type alias is supported for snapshotting
         /// </summary>
         /// <param name="alias">The alias<see cref="string"/></param>

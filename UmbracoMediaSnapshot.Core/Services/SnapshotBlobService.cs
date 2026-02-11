@@ -15,19 +15,6 @@
     public class SnapshotBlobService : ISnapshotBlobService
     {
         /// <summary>
-        /// The set of media type aliases that support snapshotting
-        /// </summary>
-        private static readonly FrozenSet<string> TargetMediaTypes = FrozenSet.ToFrozenSet(
-        [
-            "umbracoMediaArticle",
-            "umbracoMediaAudio",
-            "File",
-            "Image",
-            "umbracoMediaVectorGraphics",
-            "umbracoMediaVideo"
-        ]);
-
-        /// <summary>
         /// Defines the _blobServiceClient
         /// </summary>
         private readonly BlobServiceClient _blobServiceClient;
@@ -94,12 +81,29 @@
         /// <inheritdoc />
 
         /// <summary>
+        /// The TargetMediaTypes
+        /// </summary>
+        public IReadOnlyCollection<string> TargetMediaTypes => TargetMediaTypesSet;
+
+        private static readonly FrozenSet<string> TargetMediaTypesSet = FrozenSet.ToFrozenSet(
+        [
+            "umbracoMediaArticle",
+            "umbracoMediaAudio",
+            "File",
+            "Image",
+            "umbracoMediaVectorGraphics",
+            "umbracoMediaVideo"
+        ]);
+
+        /// <inheritdoc />
+
+        /// <summary>
         /// The IsTargetMediaType
         /// </summary>
         /// <param name="alias">The alias<see cref="string"/></param>
         /// <returns>The <see cref="bool"/></returns>
         public bool IsTargetMediaType(string alias)
-            => TargetMediaTypes.Contains(alias);
+            => TargetMediaTypesSet.Contains(alias);
 
         /// <inheritdoc />
 

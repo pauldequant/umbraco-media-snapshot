@@ -2,6 +2,7 @@
 {
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Options;
+    using Services;
     using Umbraco.Cms.Core.Configuration.Models;
     using Umbraco.Cms.Core.IO;
     using Umbraco.Cms.Core.Models;
@@ -18,19 +19,6 @@
     /// </summary>
     public class UmbracoMediaSnapshotMigration : AsyncPackageMigrationBase
     {
-        /// <summary>
-        /// Defines the TARGET_MEDIA_TYPES
-        /// </summary>
-        private static readonly string[] TARGET_MEDIA_TYPES = new[]
-        {
-            "umbracoMediaArticle",
-            "umbracoMediaAudio",
-            "File",
-            "Image",
-            "umbracoMediaVectorGraphics",
-            "umbracoMediaVideo"
-        };
-
         /// <summary>
         /// Defines the PROPERTY_ALIAS
         /// </summary>
@@ -92,6 +80,11 @@
         private readonly ILogger<UmbracoMediaSnapshotMigration> _logger;
 
         /// <summary>
+        /// Defines the _blobService
+        /// </summary>
+        private readonly ISnapshotBlobService _blobService;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="UmbracoMediaSnapshotMigration"/> class.
         /// </summary>
         /// <param name="packagingService">The packagingService<see cref="IPackagingService"/></param>
@@ -107,6 +100,7 @@
         /// <param name="serializer">The serializer<see cref="IConfigurationEditorJsonSerializer"/></param>
         /// <param name="propertyEditorCollection">The propertyEditorCollection<see cref="PropertyEditorCollection"/></param>
         /// <param name="logger">The logger<see cref="ILogger{UmbracoMediaSnapshotMigration}"/></param>
+        /// <param name="blobService">The blobService<see cref="ISnapshotBlobService"/></param>
         public UmbracoMediaSnapshotMigration(
             IPackagingService packagingService,
             IMediaService mediaService,
@@ -120,7 +114,8 @@
             IDataTypeService dataTypeService,
             IConfigurationEditorJsonSerializer serializer,
             PropertyEditorCollection propertyEditorCollection,
-            ILogger<UmbracoMediaSnapshotMigration> logger)
+            ILogger<UmbracoMediaSnapshotMigration> logger,
+            ISnapshotBlobService blobService)
             : base(packagingService, mediaService, mediaFileManager, mediaUrlGenerators, shortStringHelper, contentTypeBaseServiceProvider, context, packageMigrationsSettings)
         {
             _mediaTypeService = mediaTypeService ?? throw new ArgumentNullException(nameof(mediaTypeService));
@@ -129,6 +124,7 @@
             _shortStringHelper = shortStringHelper ?? throw new ArgumentNullException(nameof(shortStringHelper));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _propertyEditorCollection = propertyEditorCollection ?? throw new ArgumentNullException(nameof(propertyEditorCollection));
+            _blobService = blobService ?? throw new ArgumentNullException(nameof(blobService));
         }
 
         /// <summary>
@@ -139,7 +135,7 @@
         {
             try
             {
-                _logger.LogInformation("Starting Media Snapshot migration for {Count} media types", TARGET_MEDIA_TYPES.Length);
+                _logger.LogInformation("Starting Media Snapshot migration for {Count} media types", _blobService.TargetMediaTypes.Count);
 
                 var mediaSnapshotDataType = await GetOrCreateDataTypeAsync();
                 if (mediaSnapshotDataType == null)
@@ -152,7 +148,7 @@
                 var skippedCount = 0;
                 var notFoundCount = 0;
 
-                foreach (var mediaTypeAlias in TARGET_MEDIA_TYPES)
+                foreach (var mediaTypeAlias in _blobService.TargetMediaTypes)
                 {
                     var result = await ProcessMediaTypeAsync(mediaTypeAlias, mediaSnapshotDataType);
 
@@ -352,8 +348,19 @@
         /// </summary>
         private enum MigrationResult
         {
+            /// <summary>
+            /// Defines the Success
+            /// </summary>
             Success,
+
+            /// <summary>
+            /// Defines the Skipped
+            /// </summary>
             Skipped,
+
+            /// <summary>
+            /// Defines the NotFound
+            /// </summary>
             NotFound
         }
     }
