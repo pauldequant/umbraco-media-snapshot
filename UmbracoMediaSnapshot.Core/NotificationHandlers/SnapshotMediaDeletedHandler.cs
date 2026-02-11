@@ -12,24 +12,24 @@
     public class SnapshotMediaDeletedHandler : INotificationAsyncHandler<MediaDeletedNotification>
     {
         /// <summary>
-        /// Defines the _configuration
-        /// </summary>
-        private readonly IConfiguration _configuration;
-
-        /// <summary>
         /// Defines the _logger
         /// </summary>
         private readonly ILogger<SnapshotMediaDeletedHandler> _logger;
 
         /// <summary>
+        /// Defines the _blobServiceClient
+        /// </summary>
+        private readonly BlobServiceClient _blobServiceClient;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="SnapshotMediaDeletedHandler"/> class.
         /// </summary>
-        /// <param name="configuration">The configuration<see cref="IConfiguration"/></param>
         /// <param name="logger">The logger<see cref="ILogger{SnapshotMediaDeletedHandler}"/></param>
-        public SnapshotMediaDeletedHandler(IConfiguration configuration, ILogger<SnapshotMediaDeletedHandler> logger)
+        /// <param name="blobServiceClient">The blobServiceClient<see cref="BlobServiceClient"/></param>
+        public SnapshotMediaDeletedHandler(ILogger<SnapshotMediaDeletedHandler> logger, BlobServiceClient blobServiceClient)
         {
-            _configuration = configuration;
             _logger = logger;
+            _blobServiceClient = blobServiceClient;
         }
 
         /// <summary>
@@ -40,11 +40,7 @@
         /// <returns>The <see cref="Task"/></returns>
         public async Task HandleAsync(MediaDeletedNotification notification, CancellationToken cancellationToken)
         {
-            var connectionString = _configuration.GetValue<string>("Umbraco:Storage:AzureBlob:Media:ConnectionString");
-            if (string.IsNullOrEmpty(connectionString)) return;
-
-            var serviceClient = new BlobServiceClient(connectionString);
-            var snapshotContainer = serviceClient.GetBlobContainerClient("umbraco-snapshots");
+            var snapshotContainer = _blobServiceClient.GetBlobContainerClient("umbraco-snapshots");
 
             // Check if the snapshots container even exists before trying to delete from it
             if (!await snapshotContainer.ExistsAsync(cancellationToken)) return;

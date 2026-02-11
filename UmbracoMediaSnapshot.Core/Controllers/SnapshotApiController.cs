@@ -1,4 +1,4 @@
-﻿namespace UmbracoMediaSnapshot.Core.Controllers
+﻿    namespace UmbracoMediaSnapshot.Core.Controllers
 {
     using Azure;
     using Azure.Storage.Blobs;
@@ -46,18 +46,25 @@
         private readonly ILogger<SnapshotApiController> _logger;
 
         /// <summary>
+        /// Defines the _blobServiceClient
+        /// </summary>
+        private readonly BlobServiceClient _blobServiceClient;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="SnapshotApiController"/> class.
         /// </summary>
         /// <param name="configuration">The configuration<see cref="IConfiguration"/></param>
         /// <param name="mediaService">The mediaService<see cref="IMediaService"/></param>
         /// <param name="settings">The settings<see cref="IOptions{MediaSnapshotSettings}"/></param>
         /// <param name="logger">The logger<see cref="ILogger{SnapshotApiController}"/></param>
-        public SnapshotApiController(IConfiguration configuration, IMediaService mediaService, IOptions<MediaSnapshotSettings> settings, ILogger<SnapshotApiController> logger)
+        /// <param name="blobServiceClient">The blobServiceClient<see cref="BlobServiceClient"/></param>
+        public SnapshotApiController(IConfiguration configuration, IMediaService mediaService, IOptions<MediaSnapshotSettings> settings, ILogger<SnapshotApiController> logger, BlobServiceClient blobServiceClient)
         {
             _configuration = configuration;
             _mediaService = mediaService;
             _settings = settings.Value;
             _logger = logger;
+            _blobServiceClient = blobServiceClient;
         }
 
         /// <summary>
@@ -162,9 +169,8 @@
                 var connectionString = _configuration.GetValue<string>("Umbraco:Storage:AzureBlob:Media:ConnectionString");
                 var mediaContainerName = _configuration.GetValue<string>("Umbraco:Storage:AzureBlob:Media:ContainerName") ?? "umbraco";
 
-                var serviceClient = new BlobServiceClient(connectionString);
-                var snapshotContainer = serviceClient.GetBlobContainerClient("umbraco-snapshots");
-                var mediaContainer = serviceClient.GetBlobContainerClient(mediaContainerName);
+                var snapshotContainer = _blobServiceClient.GetBlobContainerClient("umbraco-snapshots");
+                var mediaContainer = _blobServiceClient.GetBlobContainerClient(mediaContainerName);
 
                 // Get the snapshot blob to restore from
                 var snapshotBlobPath = $"{folderPath}/{request.SnapshotName}";

@@ -57,6 +57,11 @@
         private readonly MediaSnapshotSettings _settings;
 
         /// <summary>
+        /// Defines the _blobServiceClient
+        /// </summary>
+        private readonly BlobServiceClient _blobServiceClient;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="SnapshotMediaSavedHandler"/> class.
         /// </summary>
         /// <param name="backofficeSecurityAccessor">The backofficeSecurityAccessor<see cref="IBackOfficeSecurityAccessor"/></param>
@@ -64,18 +69,21 @@
         /// <param name="configuration">The configuration<see cref="IConfiguration"/></param>
         /// <param name="settings">The settings<see cref="IOptions{MediaSnapshotSettings}"/></param>
         /// <param name="logger">The logger<see cref="ILogger{SnapshotMediaSavedHandler}"/></param>
+        /// <param name="blobServiceClient">The blobServiceClient<see cref="BlobServiceClient"/></param>
         public SnapshotMediaSavedHandler(
             IBackOfficeSecurityAccessor backofficeSecurityAccessor,
             IAzureBlobFileSystemProvider azureBlobFileSystemProvider,
             IConfiguration configuration,
             IOptions<MediaSnapshotSettings> settings,
-            ILogger<SnapshotMediaSavedHandler> logger)
+            ILogger<SnapshotMediaSavedHandler> logger,
+            BlobServiceClient blobServiceClient)
         {
             _backofficeSecurityAccessor = backofficeSecurityAccessor;
             _azureBlobFileSystemProvider = azureBlobFileSystemProvider;
             _configuration = configuration;
             _settings = settings.Value;
             _logger = logger;
+            _blobServiceClient = blobServiceClient;
         }
 
         /// <summary>
@@ -89,16 +97,12 @@
             var connectionString = _configuration.GetValue<string>("Umbraco:Storage:AzureBlob:Media:ConnectionString");
             var mediaContainerName = _configuration.GetValue<string>("Umbraco:Storage:AzureBlob:Media:ContainerName") ?? "umbraco";
 
-            if (string.IsNullOrEmpty(connectionString)) return;
-
-            var serviceClient = new BlobServiceClient(connectionString);
-
             // 1. Snapshot Client (Target)
-            var snapshotContainer = serviceClient.GetBlobContainerClient("umbraco-snapshots");
+            var snapshotContainer = _blobServiceClient.GetBlobContainerClient("umbraco-snapshots");
             await snapshotContainer.CreateIfNotExistsAsync(PublicAccessType.None, cancellationToken: cancellationToken);
 
             // 2. Original Media Client (Source)
-            var mediaContainer = serviceClient.GetBlobContainerClient(mediaContainerName);
+            var mediaContainer = _blobServiceClient.GetBlobContainerClient(mediaContainerName);
 
             // 3. Umbraco FileSystem abstraction
             var azureMediaFileSystem = _azureBlobFileSystemProvider.GetFileSystem("Media");

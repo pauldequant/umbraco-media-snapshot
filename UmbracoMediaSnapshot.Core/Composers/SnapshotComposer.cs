@@ -1,13 +1,14 @@
-﻿using UmbracoMediaSnapshot.Core.Configuration;
-
-namespace UmbracoMediaSnapshot.Core.Composers
+﻿namespace UmbracoMediaSnapshot.Core.Composers
 {
+    using Azure.Storage.Blobs;
+    using Configuration;
+    using Microsoft.Extensions.DependencyInjection;
+    using Migrations;
+    using NotificationHandlers;
     using Umbraco.Cms.Core.Composing;
     using Umbraco.Cms.Core.DependencyInjection;
     using Umbraco.Cms.Core.Notifications;
     using Umbraco.Extensions;
-    using UmbracoMediaSnapshot.Core.Migrations;
-    using UmbracoMediaSnapshot.Core.NotificationHandlers;
 
     /// <summary>
     /// Defines the <see cref="SnapshotComposer" />
@@ -21,6 +22,15 @@ namespace UmbracoMediaSnapshot.Core.Composers
         public void Compose(IUmbracoBuilder builder)
         {
             builder.Services.Configure<MediaSnapshotSettings>(builder.Config.GetSection("UmbracoMediaSnapshot"));
+
+            builder.Services.AddSingleton(sp =>
+            {
+                var configuration = sp.GetRequiredService<IConfiguration>();
+                var connectionString = configuration.GetValue<string>("Umbraco:Storage:AzureBlob:Media:ConnectionString");
+                return string.IsNullOrEmpty(connectionString)
+                    ? throw new InvalidOperationException("Azure Blob Storage connection string is not configured at 'Umbraco:Storage:AzureBlob:Media:ConnectionString'.")
+                    : new BlobServiceClient(connectionString);
+            });
 
             builder.PackageMigrationPlans().Add<UmbracoMediaSnapshotMigrationPlan>();
 

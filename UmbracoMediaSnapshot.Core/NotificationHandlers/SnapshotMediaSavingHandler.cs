@@ -3,6 +3,7 @@
     using Azure;
     using Azure.Storage.Blobs;
     using Azure.Storage.Blobs.Models;
+    using Configuration;
     using Microsoft.Extensions.Options;
     using System.Collections.Concurrent;
     using System.Text.Json;
@@ -12,26 +13,25 @@
     using Umbraco.Cms.Core.Notifications;
     using Umbraco.Cms.Core.Security;
     using Umbraco.Cms.Core.Services;
-    using UmbracoMediaSnapshot.Core.Configuration;
 
     /// <summary>
     /// Handles <see cref="MediaSavingNotification"/> to snapshot the previous version of a media file
     /// before it is replaced by a new upload. No snapshot is taken on first upload.
-    /// Uses a Copy-on-Write strategy: only the outgoing file is archived to umbraco-snapshots.
+    /// Uses a Copy-on-Write strategy: only the outgoing file is archived to umbraco-snapshots
     /// </summary>
     public class SnapshotMediaSavingHandler : INotificationAsyncHandler<MediaSavingNotification>
     {
         /// <summary>
         /// Media items whose Id is in this set will be skipped by the handler.
         /// The restore endpoint adds an Id here before calling <c>IMediaService.Save</c>
-        /// so that the save does not create a redundant snapshot.
+        /// so that the save does not create a redundant snapshot
         /// </summary>
         internal static readonly ConcurrentDictionary<int, byte> SuppressedMediaIds = new();
 
         /// <summary>
         /// Media items whose Id is in this set will bypass the duplicate check
         /// in the Saved handler. The restore endpoint adds an Id here so that
-        /// the restored file always appears as the latest snapshot.
+        /// the restored file always appears as the latest snapshot
         /// </summary>
         internal static readonly ConcurrentDictionary<int, byte> ForceSnapshotMediaIds = new();
 
@@ -74,6 +74,11 @@
         private readonly MediaSnapshotSettings _settings;
 
         /// <summary>
+        /// Defines the _blobServiceClient
+        /// </summary>
+        private readonly BlobServiceClient _blobServiceClient;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="SnapshotMediaSavingHandler"/> class.
         /// </summary>
         /// <param name="backofficeSecurityAccessor">The backofficeSecurityAccessor<see cref="IBackOfficeSecurityAccessor"/></param>
@@ -81,18 +86,21 @@
         /// <param name="configuration">The configuration<see cref="IConfiguration"/></param>
         /// <param name="settings">The settings<see cref="IOptions{MediaSnapshotSettings}"/></param>
         /// <param name="logger">The logger<see cref="ILogger{SnapshotMediaSavingHandler}"/></param>
+        /// <param name="blobServiceClient">The blobServiceClient<see cref="BlobServiceClient"/></param>
         public SnapshotMediaSavingHandler(
             IBackOfficeSecurityAccessor backofficeSecurityAccessor,
             IMediaService mediaService,
             IConfiguration configuration,
             IOptions<MediaSnapshotSettings> settings,
-            ILogger<SnapshotMediaSavingHandler> logger)
+            ILogger<SnapshotMediaSavingHandler> logger,
+            BlobServiceClient blobServiceClient)
         {
             _backofficeSecurityAccessor = backofficeSecurityAccessor;
             _mediaService = mediaService;
             _configuration = configuration;
             _settings = settings.Value;
             _logger = logger;
+            _blobServiceClient = blobServiceClient;
         }
 
         /// <summary>
@@ -106,16 +114,12 @@
             var connectionString = _configuration.GetValue<string>("Umbraco:Storage:AzureBlob:Media:ConnectionString");
             var mediaContainerName = _configuration.GetValue<string>("Umbraco:Storage:AzureBlob:Media:ContainerName") ?? "umbraco";
 
-            if (string.IsNullOrEmpty(connectionString)) return;
-
-            var serviceClient = new BlobServiceClient(connectionString);
-
             // 1. Snapshot Client (Target)
-            var snapshotContainer = serviceClient.GetBlobContainerClient("umbraco-snapshots");
+            var snapshotContainer = _blobServiceClient.GetBlobContainerClient("umbraco-snapshots");
             await snapshotContainer.CreateIfNotExistsAsync(PublicAccessType.None, cancellationToken: cancellationToken);
 
             // 2. Original Media Client (Source)
-            var mediaContainer = serviceClient.GetBlobContainerClient(mediaContainerName);
+            var mediaContainer = _blobServiceClient.GetBlobContainerClient(mediaContainerName);
 
             foreach (var media in notification.SavedEntities)
             {
@@ -304,7 +308,6 @@
 
             // "media/if3f2s40/file.csv"
             return rawPath?.TrimStart('/');
-
         }
 
         /// <summary>
