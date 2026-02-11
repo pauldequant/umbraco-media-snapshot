@@ -1,6 +1,7 @@
 ﻿namespace UmbracoMediaSnapshot.Core.Controllers
 {
     using Azure;
+    using Azure.Storage.Blobs;
     using Azure.Storage.Blobs.Models;
     using Azure.Storage.Sas;
     using Configuration;
@@ -15,6 +16,7 @@
     using System.Text.RegularExpressions;
     using Umbraco.Cms.Api.Management.Controllers;
     using Umbraco.Cms.Api.Management.Routing;
+    using Umbraco.Cms.Core.Models;
     using Umbraco.Cms.Core.Services;
 
     /// <summary>
@@ -157,139 +159,43 @@
                 if (string.IsNullOrEmpty(folderPath))
                     return BadRequest("Unable to determine media folder path");
 
+                var currentFilePath = _blobService.ExtractFilePath(umbracoFileValue);
+                if (string.IsNullOrEmpty(currentFilePath))
+                    return BadRequest("Unable to determine current file path");
+
                 var snapshotContainer = _blobService.GetSnapshotContainer();
                 var mediaContainer = _blobService.GetMediaContainer();
 
-                // Get the snapshot blob to restore from
+                // Locate and download the snapshot blob
                 var snapshotBlobPath = $"{folderPath}/{request.SnapshotName}";
                 var snapshotBlob = snapshotContainer.GetBlobClient(snapshotBlobPath);
 
                 if (!await snapshotBlob.ExistsAsync())
                     return NotFound("Snapshot file not found");
 
-                // Download the snapshot content
                 var downloadResult = await snapshotBlob.DownloadAsync();
                 var snapshotProperties = await snapshotBlob.GetPropertiesAsync();
 
-                // Get the current file path
-                var currentFilePath = _blobService.ExtractFilePath(umbracoFileValue);
-                if (string.IsNullOrEmpty(currentFilePath))
-                    return BadRequest("Unable to determine current file path");
-
-                var currentMediaBlobPath = currentFilePath.TrimStart('/');
-                var currentMediaBlob = mediaContainer.GetBlobClient(currentMediaBlobPath);
-
-                // ── Restore the selected snapshot into the media container ──
-                // Strip the timestamp from the snapshot filename to get the original filename
-                // Format: 20260209_155612_sample-document.pdf -> sample-document.pdf
-                var originalFileName = StripTimestampFromFilename(request.SnapshotName);
-
-                // Determine the new file path (same folder, but with the original filename without timestamp)
-                var newFilePath = $"media/{folderPath}/{originalFileName}";
-                var newMediaBlob = mediaContainer.GetBlobClient(newFilePath);
-
-                // Delete the old file if it's at a different path than the restored one
-                if (!currentMediaBlobPath.Equals(newFilePath, StringComparison.OrdinalIgnoreCase))
-                {
-                    if (await currentMediaBlob.ExistsAsync())
-                    {
-                        await currentMediaBlob.DeleteAsync();
-                        _logger.LogInformation("Deleted old media file: {OldPath}", currentFilePath);
-                    }
-                }
-
-                // Copy the stream to a MemoryStream so we can read it multiple times
+                // Buffer the content so it can be read multiple times (upload + image dimensions)
                 using var memoryStream = new MemoryStream();
                 await downloadResult.Value.Content.CopyToAsync(memoryStream);
                 memoryStream.Position = 0;
 
-                // Upload the snapshot content to the media location
-                await newMediaBlob.UploadAsync(memoryStream, overwrite: true);
+                // Replace the media blob in Azure storage
+                var originalFileName = StripTimestampFromFilename(request.SnapshotName);
+                var newFilePath = $"media/{folderPath}/{originalFileName}";
 
-                // Set the content type
-                if (!string.IsNullOrEmpty(snapshotProperties.Value.ContentType))
-                {
-                    await newMediaBlob.SetHttpHeadersAsync(new BlobHttpHeaders
-                    {
-                        ContentType = snapshotProperties.Value.ContentType
-                    });
-                }
+                await ReplaceMediaBlobAsync(mediaContainer, currentFilePath.TrimStart('/'), newFilePath, memoryStream, snapshotProperties.Value);
 
-                // Mark the restored snapshot blob with restore metadata
-                var restoredSnapshotMeta = new Dictionary<string, string>(snapshotProperties.Value.Metadata)
-                {
-                    ["RestoredFrom"] = request.SnapshotName,
-                    ["RestoredDate"] = DateTime.UtcNow.ToString("O")
-                };
-                await snapshotBlob.SetMetadataAsync(restoredSnapshotMeta);
+                // Tag the snapshot blob with restore metadata
+                await MarkSnapshotAsRestoredAsync(snapshotBlob, snapshotProperties.Value, request.SnapshotName);
 
-                // Update the umbracoFile value on the media item
+                // Update all Umbraco media properties (umbracoFile, umbracoBytes, dimensions)
                 var newSrc = $"/media/{folderPath}/{originalFileName}";
-                var isImage = IsImageFile(originalFileName, snapshotProperties.Value.ContentType);
+                UpdateMediaProperties(media, umbracoFileValue, newSrc, originalFileName, snapshotProperties.Value, memoryStream, request.MediaKey);
 
-                if (umbracoFileValue?.Trim().StartsWith("{") == true)
-                {
-                    // This is JSON (image file) - preserve all properties, only change src
-                    using var jsonDoc = JsonDocument.Parse(umbracoFileValue);
-                    var root = jsonDoc.RootElement;
-
-                    var updatedJson = new Dictionary<string, object?>();
-
-                    foreach (var property in root.EnumerateObject())
-                    {
-                        if (property.Name == "src")
-                        {
-                            updatedJson["src"] = newSrc;
-                        }
-                        else
-                        {
-                            // Preserve all other properties (crops, focalPoint, etc.)
-                            updatedJson[property.Name] = JsonSerializer.Deserialize<object>(property.Value.GetRawText());
-                        }
-                    }
-
-                    if (!updatedJson.ContainsKey("src"))
-                    {
-                        updatedJson["src"] = newSrc;
-                    }
-
-                    media.SetValue("umbracoFile", JsonSerializer.Serialize(updatedJson));
-                }
-                else
-                {
-                    // This is a plain string path (non-image file) - replace the entire value
-                    media.SetValue("umbracoFile", newSrc);
-                }
-
-                // Update file size
-                var fileSize = snapshotProperties.Value.ContentLength;
-                media.SetValue("umbracoBytes", fileSize);
-
-                // Update image dimensions if this is an image file
-                if (isImage)
-                {
-                    memoryStream.Position = 0;
-                    var dimensions = GetImageDimensions(memoryStream);
-
-                    if (dimensions.HasValue)
-                    {
-                        media.SetValue("umbracoWidth", dimensions.Value.Width);
-                        media.SetValue("umbracoHeight", dimensions.Value.Height);
-
-                        _logger.LogInformation("Updated image dimensions for media {MediaKey}: {Width}x{Height}",
-                            request.MediaKey, dimensions.Value.Width, dimensions.Value.Height);
-                    }
-                }
-
-                // Suppress the saving handler so it does not create a duplicate snapshot
-                SnapshotMediaSavingHandler.SuppressedMediaIds.TryAdd(media.Id, 0);
-
-                // Force the saved handler to create a snapshot even if the file
-                // matches an existing one (the restored file IS a previous snapshot)
-                SnapshotMediaSavingHandler.ForceSnapshotMediaIds.TryAdd(media.Id, 0);
-
-                // Save the media item
-                _mediaService.Save(media);
+                // Save via Umbraco, suppressing the saving handler to avoid a duplicate snapshot
+                SaveMediaWithSnapshotBypass(media);
 
                 _logger.LogInformation("Successfully restored snapshot {SnapshotName} for media {MediaKey}. New path: {NewPath}",
                     request.SnapshotName, request.MediaKey, newSrc);
@@ -316,6 +222,166 @@
         }
 
         /// <summary>
+        /// Replaces the current media blob with the snapshot content,
+        /// deleting the old blob if it lives at a different path
+        /// </summary>
+        /// <param name="mediaContainer">The mediaContainer<see cref="BlobContainerClient"/></param>
+        /// <param name="currentBlobPath">The currentBlobPath<see cref="string"/></param>
+        /// <param name="newBlobPath">The newBlobPath<see cref="string"/></param>
+        /// <param name="content">The content<see cref="MemoryStream"/></param>
+        /// <param name="snapshotProperties">The snapshotProperties<see cref="BlobProperties"/></param>
+        /// <returns>The <see cref="Task"/></returns>
+        private async Task ReplaceMediaBlobAsync(
+            BlobContainerClient mediaContainer,
+            string currentBlobPath,
+            string newBlobPath,
+            MemoryStream content,
+            BlobProperties snapshotProperties)
+        {
+            // Delete the old file if it's at a different path than the restored one
+            if (!currentBlobPath.Equals(newBlobPath, StringComparison.OrdinalIgnoreCase))
+            {
+                var currentBlob = mediaContainer.GetBlobClient(currentBlobPath);
+                if (await currentBlob.ExistsAsync())
+                {
+                    await currentBlob.DeleteAsync();
+                    _logger.LogInformation("Deleted old media file: {OldPath}", currentBlobPath);
+                }
+            }
+
+            // Upload the snapshot content to the new media location
+            var newBlob = mediaContainer.GetBlobClient(newBlobPath);
+            content.Position = 0;
+            await newBlob.UploadAsync(content, overwrite: true);
+
+            // Preserve the original content type
+            if (!string.IsNullOrEmpty(snapshotProperties.ContentType))
+            {
+                await newBlob.SetHttpHeadersAsync(new BlobHttpHeaders
+                {
+                    ContentType = snapshotProperties.ContentType
+                });
+            }
+        }
+
+        /// <summary>
+        /// Tags the snapshot blob with restore metadata so the UI can display restore history
+        /// </summary>
+        /// <param name="snapshotBlob">The snapshotBlob<see cref="BlobClient"/></param>
+        /// <param name="snapshotProperties">The snapshotProperties<see cref="BlobProperties"/></param>
+        /// <param name="snapshotName">The snapshotName<see cref="string"/></param>
+        /// <returns>The <see cref="Task"/></returns>
+        private static async Task MarkSnapshotAsRestoredAsync(
+            BlobClient snapshotBlob,
+            BlobProperties snapshotProperties,
+            string snapshotName)
+        {
+            var restoredMeta = new Dictionary<string, string>(snapshotProperties.Metadata)
+            {
+                ["RestoredFrom"] = snapshotName,
+                ["RestoredDate"] = DateTime.UtcNow.ToString("O")
+            };
+            await snapshotBlob.SetMetadataAsync(restoredMeta);
+        }
+
+        /// <summary>
+        /// Updates the Umbraco media item properties: umbracoFile, umbracoBytes,
+        /// and optionally umbracoWidth/umbracoHeight for image files
+        /// </summary>
+        /// <param name="media">The media<see cref="IMedia"/></param>
+        /// <param name="umbracoFileValue">The umbracoFileValue<see cref="string?"/></param>
+        /// <param name="newSrc">The newSrc<see cref="string"/></param>
+        /// <param name="originalFileName">The originalFileName<see cref="string"/></param>
+        /// <param name="snapshotProperties">The snapshotProperties<see cref="BlobProperties"/></param>
+        /// <param name="content">The content<see cref="MemoryStream"/></param>
+        /// <param name="mediaKey">The mediaKey<see cref="Guid"/></param>
+        private void UpdateMediaProperties(
+            IMedia media,
+            string? umbracoFileValue,
+            string newSrc,
+            string originalFileName,
+            BlobProperties snapshotProperties,
+            MemoryStream content,
+            Guid mediaKey)
+        {
+            // Update umbracoFile — handle both JSON (image cropper) and plain string formats
+            UpdateUmbracoFileValue(media, umbracoFileValue, newSrc);
+
+            // Update file size
+            media.SetValue("umbracoBytes", snapshotProperties.ContentLength);
+
+            // Update image dimensions if applicable
+            var isImage = IsImageFile(originalFileName, snapshotProperties.ContentType);
+            if (isImage)
+            {
+                content.Position = 0;
+                var dimensions = GetImageDimensions(content);
+
+                if (dimensions.HasValue)
+                {
+                    media.SetValue("umbracoWidth", dimensions.Value.Width);
+                    media.SetValue("umbracoHeight", dimensions.Value.Height);
+
+                    _logger.LogInformation("Updated image dimensions for media {MediaKey}: {Width}x{Height}",
+                        mediaKey, dimensions.Value.Width, dimensions.Value.Height);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sets the umbracoFile property value, preserving crops/focalPoint for JSON values
+        /// or replacing the plain string path for non-image files
+        /// </summary>
+        /// <param name="media">The media<see cref="IMedia"/></param>
+        /// <param name="currentValue">The currentValue<see cref="string?"/></param>
+        /// <param name="newSrc">The newSrc<see cref="string"/></param>
+        private static void UpdateUmbracoFileValue(IMedia media, string? currentValue, string newSrc)
+        {
+            if (currentValue?.Trim().StartsWith("{") == true)
+            {
+                using var jsonDoc = JsonDocument.Parse(currentValue);
+                var root = jsonDoc.RootElement;
+
+                var updatedJson = new Dictionary<string, object?>();
+
+                foreach (var property in root.EnumerateObject())
+                {
+                    if (property.Name == "src")
+                    {
+                        updatedJson["src"] = newSrc;
+                    }
+                    else
+                    {
+                        updatedJson[property.Name] = JsonSerializer.Deserialize<object>(property.Value.GetRawText());
+                    }
+                }
+
+                if (!updatedJson.ContainsKey("src"))
+                {
+                    updatedJson["src"] = newSrc;
+                }
+
+                media.SetValue("umbracoFile", JsonSerializer.Serialize(updatedJson));
+            }
+            else
+            {
+                media.SetValue("umbracoFile", newSrc);
+            }
+        }
+
+        /// <summary>
+        /// Saves the media item while suppressing the saving handler and forcing
+        /// the saved handler to create a snapshot for the restored file
+        /// </summary>
+        /// <param name="media">The media<see cref="IMedia"/></param>
+        private void SaveMediaWithSnapshotBypass(IMedia media)
+        {
+            SnapshotMediaSavingHandler.SuppressedMediaIds.TryAdd(media.Id, 0);
+            SnapshotMediaSavingHandler.ForceSnapshotMediaIds.TryAdd(media.Id, 0);
+            _mediaService.Save(media);
+        }
+
+        /// <summary>
         /// The TimestampPattern
         /// </summary>
         /// <returns>The <see cref="Regex"/></returns>
@@ -329,8 +395,6 @@
         /// <returns>The <see cref="string"/></returns>
         private static string StripTimestampFromFilename(string filename)
         {
-            // Pattern: YYYYMMDD_HHMMSS_originalfilename.ext
-            // We need to remove the first 16 characters (8 for date + 1 underscore + 6 for time + 1 underscore)
             var match = TimestampPattern().Match(filename);
             return match.Success ? filename[match.Length..] : filename;
         }
@@ -341,7 +405,7 @@
         /// <param name="filename">The filename<see cref="string"/></param>
         /// <param name="contentType">The contentType<see cref="string?"/></param>
         /// <returns>The <see cref="bool"/></returns>
-        private bool IsImageFile(string filename, string? contentType)
+        private static bool IsImageFile(string filename, string? contentType)
         {
             var imageExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg" };
             var extension = Path.GetExtension(filename).ToLowerInvariant();
