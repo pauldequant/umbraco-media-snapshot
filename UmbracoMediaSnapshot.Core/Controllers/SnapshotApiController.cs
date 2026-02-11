@@ -1,4 +1,4 @@
-﻿    namespace UmbracoMediaSnapshot.Core.Controllers
+﻿namespace UmbracoMediaSnapshot.Core.Controllers
 {
     using Azure;
     using Azure.Storage.Blobs;
@@ -87,9 +87,7 @@
 
                 if (string.IsNullOrEmpty(folderPath)) return Ok(Enumerable.Empty<SnapshotVersionModel>());
 
-                var connectionString = _configuration.GetValue<string>("Umbraco:Storage:AzureBlob:Media:ConnectionString");
-                var serviceClient = new BlobServiceClient(connectionString);
-                var snapshotContainer = serviceClient.GetBlobContainerClient("umbraco-snapshots");
+                var snapshotContainer = _blobServiceClient.GetBlobContainerClient("umbraco-snapshots");
 
                 if (!await snapshotContainer.ExistsAsync()) return Ok(Enumerable.Empty<SnapshotVersionModel>());
 
@@ -166,7 +164,6 @@
                 if (string.IsNullOrEmpty(folderPath))
                     return BadRequest("Unable to determine media folder path");
 
-                var connectionString = _configuration.GetValue<string>("Umbraco:Storage:AzureBlob:Media:ConnectionString");
                 var mediaContainerName = _configuration.GetValue<string>("Umbraco:Storage:AzureBlob:Media:ContainerName") ?? "umbraco";
 
                 var snapshotContainer = _blobServiceClient.GetBlobContainerClient("umbraco-snapshots");
