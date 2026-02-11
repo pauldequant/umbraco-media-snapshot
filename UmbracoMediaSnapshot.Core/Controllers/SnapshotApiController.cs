@@ -12,6 +12,7 @@
     using Services;
     using SixLabors.ImageSharp;
     using System.Text.Json;
+    using System.Text.RegularExpressions;
     using Umbraco.Cms.Api.Management.Controllers;
     using Umbraco.Cms.Api.Management.Routing;
     using Umbraco.Cms.Core.Services;
@@ -315,26 +316,23 @@
         }
 
         /// <summary>
+        /// The TimestampPattern
+        /// </summary>
+        /// <returns>The <see cref="Regex"/></returns>
+        [GeneratedRegex(@"^\d{8}_\d{6}_")]
+        private static partial Regex TimestampPattern();
+
+        /// <summary>
         /// The StripTimestampFromFilename
         /// </summary>
         /// <param name="filename">The filename<see cref="string"/></param>
         /// <returns>The <see cref="string"/></returns>
-        private string StripTimestampFromFilename(string filename)
+        private static string StripTimestampFromFilename(string filename)
         {
             // Pattern: YYYYMMDD_HHMMSS_originalfilename.ext
             // We need to remove the first 16 characters (8 for date + 1 underscore + 6 for time + 1 underscore)
-
-            // Use regex to match the timestamp pattern at the start
-            var timestampPattern = @"^\d{8}_\d{6}_";
-            var match = System.Text.RegularExpressions.Regex.Match(filename, timestampPattern);
-
-            if (match.Success)
-            {
-                return filename.Substring(match.Length);
-            }
-
-            // If no timestamp found, return the original filename
-            return filename;
+            var match = TimestampPattern().Match(filename);
+            return match.Success ? filename[match.Length..] : filename;
         }
 
         /// <summary>
