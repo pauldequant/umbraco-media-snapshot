@@ -1,26 +1,26 @@
-import { LitElement as d, html as o, css as p, state as l, customElement as h } from "@umbraco-cms/backoffice/external/lit";
-import { UmbElementMixin as m } from "@umbraco-cms/backoffice/element-api";
-import { UMB_WORKSPACE_CONTEXT as g } from "@umbraco-cms/backoffice/workspace";
+import { LitElement as m, html as s, css as g, state as l, customElement as b } from "@umbraco-cms/backoffice/external/lit";
+import { UmbElementMixin as _ } from "@umbraco-cms/backoffice/element-api";
+import { UMB_WORKSPACE_CONTEXT as f } from "@umbraco-cms/backoffice/workspace";
 import { UMB_AUTH_CONTEXT as v } from "@umbraco-cms/backoffice/auth";
-import { UMB_NOTIFICATION_CONTEXT as b } from "@umbraco-cms/backoffice/notification";
-import { UMB_MODAL_MANAGER_CONTEXT as f, UMB_CONFIRM_MODAL as _ } from "@umbraco-cms/backoffice/modal";
-var w = Object.defineProperty, y = Object.getOwnPropertyDescriptor, n = (e, i, a, t) => {
-  for (var r = t > 1 ? void 0 : t ? y(i, a) : i, u = e.length - 1, c; u >= 0; u--)
-    (c = e[u]) && (r = (t ? c(i, a, r) : c(r)) || r);
-  return t && r && w(i, a, r), r;
+import { UMB_NOTIFICATION_CONTEXT as w } from "@umbraco-cms/backoffice/notification";
+import { UMB_MODAL_MANAGER_CONTEXT as y, UMB_CONFIRM_MODAL as p } from "@umbraco-cms/backoffice/modal";
+var x = Object.defineProperty, k = Object.getOwnPropertyDescriptor, r = (e, i, t, o) => {
+  for (var a = o > 1 ? void 0 : o ? k(i, t) : i, u = e.length - 1, d; u >= 0; u--)
+    (d = e[u]) && (a = (o ? d(i, t, a) : d(a)) || a);
+  return o && a && x(i, t, a), a;
 };
-let s = class extends m(d) {
+let n = class extends _(m) {
   constructor() {
-    super(), this._versions = [], this._loading = !0, this._mediaKey = "", this._previewImageUrl = null, this._previewImageName = "", this._showPreview = !1, this._isRestoring = !1, this._currentPage = 1, this._showComparison = !1, this._comparisonSnapshot = null, this._comparisonCurrent = null, this._comparisonLoading = !1, this._comparisonMode = "side-by-side", this._sliderPosition = 50, this._pageSize = 10, this.consumeContext(v, (e) => {
+    super(), this._versions = [], this._loading = !0, this._mediaKey = "", this._previewImageUrl = null, this._previewImageName = "", this._showPreview = !1, this._isRestoring = !1, this._currentPage = 1, this._showComparison = !1, this._comparisonSnapshot = null, this._comparisonCurrent = null, this._comparisonLoading = !1, this._comparisonMode = "side-by-side", this._sliderPosition = 50, this._selectedSnapshots = /* @__PURE__ */ new Set(), this._isDeleting = !1, this._pageSize = 10, this.consumeContext(v, (e) => {
       this._authContext = e;
-    }), this.consumeContext(b, (e) => {
+    }), this.consumeContext(w, (e) => {
       this._notificationContext = e;
-    }), this.consumeContext(f, (e) => {
+    }), this.consumeContext(y, (e) => {
       this._modalManagerContext = e;
-    }), this.consumeContext(g, (e) => {
+    }), this.consumeContext(f, (e) => {
       const i = e;
-      i.unique && this.observe(i.unique, (a) => {
-        a && a !== this._mediaKey && (this._mediaKey = a.toString(), this._currentPage = 1, this._fetchVersions(this._mediaKey));
+      i.unique && this.observe(i.unique, (t) => {
+        t && t !== this._mediaKey && (this._mediaKey = t.toString(), this._currentPage = 1, this._fetchVersions(this._mediaKey));
       });
     });
   }
@@ -39,18 +39,18 @@ let s = class extends m(d) {
       return;
     }
     try {
-      const a = `/umbraco/management/api/v1/snapshot/versions/${e}`, t = await fetch(a, {
+      const t = `/umbraco/management/api/v1/snapshot/versions/${e}`, o = await fetch(t, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${i}`,
           "Content-Type": "application/json"
         }
       });
-      t.ok ? this._versions = await t.json() : t.status === 401 && (console.error("Unauthorized: The session may have expired."), this._notificationContext?.peek("danger", {
+      o.ok ? (this._versions = await o.json(), this._selectedSnapshots = /* @__PURE__ */ new Set()) : o.status === 401 && (console.error("Unauthorized: The session may have expired."), this._notificationContext?.peek("danger", {
         data: { headline: "Unauthorized", message: "The session may have expired." }
       }));
-    } catch (a) {
-      console.error("Failed to fetch snapshots:", a), this._notificationContext?.peek("danger", {
+    } catch (t) {
+      console.error("Failed to fetch snapshots:", t), this._notificationContext?.peek("danger", {
         data: { headline: "Error", message: "Failed to fetch snapshots." }
       });
     } finally {
@@ -64,15 +64,15 @@ let s = class extends m(d) {
     const e = await this._authContext?.getLatestToken();
     if (!e) return null;
     try {
-      const i = `/umbraco/management/api/v1/snapshot/current/${this._mediaKey}`, a = await fetch(i, {
+      const i = `/umbraco/management/api/v1/snapshot/current/${this._mediaKey}`, t = await fetch(i, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${e}`,
           "Content-Type": "application/json"
         }
       });
-      if (a.ok)
-        return await a.json();
+      if (t.ok)
+        return await t.json();
     } catch (i) {
       console.error("Failed to fetch current media:", i);
     }
@@ -129,8 +129,8 @@ let s = class extends m(d) {
    * Checks if a filename is an image based on extension
    */
   _isImage(e) {
-    const i = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg"], a = e.substring(e.lastIndexOf(".")).toLowerCase();
-    return i.includes(a);
+    const i = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg"], t = e.substring(e.lastIndexOf(".")).toLowerCase();
+    return i.includes(t);
   }
   /**
    * Opens the image preview panel
@@ -144,6 +144,181 @@ let s = class extends m(d) {
   _closePreview() {
     this._showPreview = !1, this._previewImageUrl = null, this._previewImageName = "";
   }
+  // --- Selection helpers ---
+  /**
+   * Toggles a single snapshot's selection state
+   */
+  _toggleSelection(e) {
+    const i = new Set(this._selectedSnapshots);
+    i.has(e) ? i.delete(e) : i.add(e), this._selectedSnapshots = i;
+  }
+  /**
+   * Toggles select-all for the current page (excluding the latest version at index 0)
+   */
+  _toggleSelectAll() {
+    const e = (this._currentPage - 1) * this._pageSize, i = this._pagedVersions.filter((a, u) => e + u !== 0).map((a) => a.name), t = i.every((a) => this._selectedSnapshots.has(a)), o = new Set(this._selectedSnapshots);
+    t ? i.forEach((a) => o.delete(a)) : i.forEach((a) => o.add(a)), this._selectedSnapshots = o;
+  }
+  /**
+   * Whether all selectable items on the current page are selected
+   */
+  get _allPageSelected() {
+    const e = (this._currentPage - 1) * this._pageSize, i = this._pagedVersions.filter((t, o) => e + o !== 0);
+    return i.length > 0 && i.every((t) => this._selectedSnapshots.has(t.name));
+  }
+  /**
+   * Clears all selections
+   */
+  _clearSelection() {
+    this._selectedSnapshots = /* @__PURE__ */ new Set();
+  }
+  // --- Delete operations ---
+  /**
+   * Deletes a single snapshot after confirmation
+   */
+  async _deleteSnapshot(e) {
+    if (this._isDeleting) return;
+    if (!this._modalManagerContext) {
+      console.error("Modal manager context not available");
+      return;
+    }
+    const i = this._modalManagerContext.open(this, p, {
+      data: {
+        headline: "Delete Snapshot",
+        content: s`
+                    <p>Are you sure you want to permanently delete <strong>"${e.name}"</strong>?</p>
+                    <uui-box>
+                        <p style="margin: 0;">
+                            <uui-icon name="icon-alert"></uui-icon>
+                            <strong>Warning:</strong> This action cannot be undone. The snapshot will be permanently removed from storage.
+                        </p>
+                    </uui-box>
+                `,
+        color: "danger",
+        confirmLabel: "Delete"
+      }
+    });
+    try {
+      await i.onSubmit();
+    } catch {
+      return;
+    }
+    this._isDeleting = !0;
+    const t = await this._authContext?.getLatestToken();
+    if (!t) {
+      this._notificationContext?.peek("danger", {
+        data: { headline: "Authentication Error", message: "No authentication token available." }
+      }), this._isDeleting = !1;
+      return;
+    }
+    try {
+      const o = await fetch("/umbraco/management/api/v1/snapshot/delete", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${t}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          mediaKey: this._mediaKey,
+          snapshotName: e.name
+        })
+      });
+      if (o.ok) {
+        const a = await o.json();
+        this._notificationContext?.peek("positive", {
+          data: { headline: "Snapshot Deleted", message: a.message }
+        }), await this._fetchVersions(this._mediaKey);
+      } else if (o.status === 401)
+        this._notificationContext?.peek("danger", {
+          data: { headline: "Unauthorized", message: "Your session may have expired. Please refresh the page." }
+        });
+      else {
+        const a = await o.json();
+        this._notificationContext?.peek("danger", {
+          data: { headline: "Delete Failed", message: a.detail || "Unknown error" }
+        });
+      }
+    } catch (o) {
+      console.error("Failed to delete snapshot:", o), this._notificationContext?.peek("danger", {
+        data: { headline: "Error", message: "An error occurred while deleting the snapshot." }
+      });
+    } finally {
+      this._isDeleting = !1;
+    }
+  }
+  /**
+   * Deletes all selected snapshots after confirmation
+   */
+  async _bulkDeleteSnapshots() {
+    if (this._isDeleting || this._selectedSnapshots.size === 0) return;
+    if (!this._modalManagerContext) {
+      console.error("Modal manager context not available");
+      return;
+    }
+    const e = this._selectedSnapshots.size, i = this._modalManagerContext.open(this, p, {
+      data: {
+        headline: "Delete Selected Snapshots",
+        content: s`
+                    <p>Are you sure you want to permanently delete <strong>${e} snapshot${e > 1 ? "s" : ""}</strong>?</p>
+                    <uui-box>
+                        <p style="margin: 0;">
+                            <uui-icon name="icon-alert"></uui-icon>
+                            <strong>Warning:</strong> This action cannot be undone. All selected snapshots will be permanently removed from storage.
+                        </p>
+                    </uui-box>
+                `,
+        color: "danger",
+        confirmLabel: `Delete ${e} Snapshot${e > 1 ? "s" : ""}`
+      }
+    });
+    try {
+      await i.onSubmit();
+    } catch {
+      return;
+    }
+    this._isDeleting = !0;
+    const t = await this._authContext?.getLatestToken();
+    if (!t) {
+      this._notificationContext?.peek("danger", {
+        data: { headline: "Authentication Error", message: "No authentication token available." }
+      }), this._isDeleting = !1;
+      return;
+    }
+    try {
+      const o = await fetch("/umbraco/management/api/v1/snapshot/delete-bulk", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${t}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          mediaKey: this._mediaKey,
+          snapshotNames: Array.from(this._selectedSnapshots)
+        })
+      });
+      if (o.ok) {
+        const a = await o.json();
+        this._notificationContext?.peek("positive", {
+          data: { headline: "Snapshots Deleted", message: a.message }
+        }), await this._fetchVersions(this._mediaKey);
+      } else if (o.status === 401)
+        this._notificationContext?.peek("danger", {
+          data: { headline: "Unauthorized", message: "Your session may have expired. Please refresh the page." }
+        });
+      else {
+        const a = await o.json();
+        this._notificationContext?.peek("danger", {
+          data: { headline: "Bulk Delete Failed", message: a.detail || "Unknown error" }
+        });
+      }
+    } catch (o) {
+      console.error("Failed to bulk delete snapshots:", o), this._notificationContext?.peek("danger", {
+        data: { headline: "Error", message: "An error occurred while deleting snapshots." }
+      });
+    } finally {
+      this._isDeleting = !1;
+    }
+  }
   /**
    * Restores a specific snapshot version as the current file
    */
@@ -156,10 +331,10 @@ let s = class extends m(d) {
       console.error("Modal manager context not available");
       return;
     }
-    const i = this._modalManagerContext.open(this, _, {
+    const i = this._modalManagerContext.open(this, p, {
       data: {
         headline: "Restore File Version",
-        content: o`
+        content: s`
                     <p>Are you sure you want to restore <strong>"${e.name}"</strong>?</p>
                     <p>This will replace the current file and create a new snapshot.</p>
                     <uui-box>
@@ -179,18 +354,18 @@ let s = class extends m(d) {
       return;
     }
     this._isRestoring = !0;
-    const a = await this._authContext?.getLatestToken();
-    if (!a) {
+    const t = await this._authContext?.getLatestToken();
+    if (!t) {
       this._notificationContext?.peek("danger", {
         data: { headline: "Authentication Error", message: "No authentication token available." }
       }), this._isRestoring = !1;
       return;
     }
     try {
-      const r = await fetch("/umbraco/management/api/v1/snapshot/restore", {
+      const a = await fetch("/umbraco/management/api/v1/snapshot/restore", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${a}`,
+          Authorization: `Bearer ${t}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
@@ -198,15 +373,15 @@ let s = class extends m(d) {
           snapshotName: e.name
         })
       });
-      if (r.ok) {
-        const u = await r.json();
+      if (a.ok) {
+        const u = await a.json();
         this._notificationContext?.peek("positive", {
           data: {
             headline: "Snapshot Restored",
             message: u.message
           }
         }), await this._fetchVersions(this._mediaKey);
-      } else if (r.status === 401)
+      } else if (a.status === 401)
         this._notificationContext?.peek("danger", {
           data: {
             headline: "Unauthorized",
@@ -214,7 +389,7 @@ let s = class extends m(d) {
           }
         });
       else {
-        const u = await r.json();
+        const u = await a.json();
         this._notificationContext?.peek("danger", {
           data: {
             headline: "Restore Failed",
@@ -222,8 +397,8 @@ let s = class extends m(d) {
           }
         });
       }
-    } catch (t) {
-      console.error("Failed to restore snapshot:", t), this._notificationContext?.peek("danger", {
+    } catch (o) {
+      console.error("Failed to restore snapshot:", o), this._notificationContext?.peek("danger", {
         data: {
           headline: "Error",
           message: "An error occurred while restoring the snapshot. Please try again."
@@ -238,24 +413,24 @@ let s = class extends m(d) {
    */
   _formatSize(e) {
     if (e === 0) return "0 B";
-    const i = ["B", "KB", "MB", "GB"], a = Math.floor(Math.log(e) / Math.log(1024));
-    return (e / Math.pow(1024, a)).toFixed(1) + " " + i[a];
+    const i = ["B", "KB", "MB", "GB"], t = Math.floor(Math.log(e) / Math.log(1024));
+    return (e / Math.pow(1024, t)).toFixed(1) + " " + i[t];
   }
   /**
    * Renders the status tag for a snapshot version based on its metadata
    */
   _renderStatus(e, i) {
-    return e.isRestored ? o`
+    return e.isRestored ? s`
                 <uui-tag look="primary" color="positive">
                     <uui-icon name="icon-refresh"></uui-icon>
                     Restored ${e.restoredDate ? this._formatDate(e.restoredDate) : ""}
                 </uui-tag>
-            ` : i === 0 ? o`
+            ` : i === 0 ? s`
                 <uui-tag look="primary" color="default">
                     <uui-icon name="icon-check"></uui-icon>
                     Latest
                 </uui-tag>
-            ` : o`
+            ` : s`
             <uui-tag look="secondary" color="default">
                 Original
             </uui-tag>
@@ -266,8 +441,8 @@ let s = class extends m(d) {
    */
   _renderComparison() {
     if (!this._showComparison) return "";
-    const e = this._comparisonSnapshot, i = this._comparisonCurrent, a = e && i && this._isImage(e.name) && this._isImage(i.name);
-    return o`
+    const e = this._comparisonSnapshot, i = this._comparisonCurrent, t = e && i && this._isImage(e.name) && this._isImage(i.name);
+    return s`
             <div class="preview-overlay" @click="${this._closeComparison}"></div>
             <div class="comparison-panel">
                 <div class="preview-header">
@@ -276,7 +451,7 @@ let s = class extends m(d) {
                         Compare Versions
                     </h3>
                     <div style="display: flex; gap: 8px; align-items: center;">
-                        ${a ? o`
+                        ${t ? s`
                             <uui-button
                                 look="secondary"
                                 compact
@@ -295,7 +470,7 @@ let s = class extends m(d) {
                     </div>
                 </div>
                 <div class="comparison-content">
-                    ${this._comparisonLoading ? o`<div class="loader"><uui-loader></uui-loader> Loading current file...</div>` : i ? a ? this._renderImageComparison(i, e) : this._renderMetadataComparison(i, e) : o`<uui-box><p>Unable to load the current media file for comparison.</p></uui-box>`}
+                    ${this._comparisonLoading ? s`<div class="loader"><uui-loader></uui-loader> Loading current file...</div>` : i ? t ? this._renderImageComparison(i, e) : this._renderMetadataComparison(i, e) : s`<uui-box><p>Unable to load the current media file for comparison.</p></uui-box>`}
                 </div>
             </div>
         `;
@@ -304,7 +479,7 @@ let s = class extends m(d) {
    * Renders a side-by-side or slider image comparison
    */
   _renderImageComparison(e, i) {
-    return this._comparisonMode === "slider" ? o`
+    return this._comparisonMode === "slider" ? s`
                 <div class="slider-comparison">
                     <div class="slider-container">
                         <img class="slider-img-under" src="${e.url}" alt="Current" />
@@ -329,7 +504,7 @@ let s = class extends m(d) {
                     </div>
                 </div>
                 ${this._renderMetadataComparison(e, i)}
-            ` : o`
+            ` : s`
             <div class="side-by-side">
                 <div class="compare-column">
                     <div class="compare-label">
@@ -358,8 +533,8 @@ let s = class extends m(d) {
    * Renders a metadata diff table comparing the snapshot and current file
    */
   _renderMetadataComparison(e, i) {
-    const a = e.size - i.size, t = a > 0 ? `+${this._formatSize(a)}` : a < 0 ? `-${this._formatSize(Math.abs(a))}` : "No change";
-    return o`
+    const t = e.size - i.size, o = t > 0 ? `+${this._formatSize(t)}` : t < 0 ? `-${this._formatSize(Math.abs(t))}` : "No change";
+    return s`
             <div class="metadata-comparison">
                 <h4>File Details</h4>
                 <uui-table>
@@ -374,7 +549,7 @@ let s = class extends m(d) {
                         <uui-table-cell>${i.name}</uui-table-cell>
                         <uui-table-cell>${e.name}</uui-table-cell>
                         <uui-table-cell>
-                            ${i.name === e.name ? o`<uui-tag look="secondary" color="default">Same</uui-tag>` : o`<uui-tag look="primary" color="warning">Changed</uui-tag>`}
+                            ${i.name === e.name ? s`<uui-tag look="secondary" color="default">Same</uui-tag>` : s`<uui-tag look="primary" color="warning">Changed</uui-tag>`}
                         </uui-table-cell>
                     </uui-table-row>
                     <uui-table-row>
@@ -382,8 +557,8 @@ let s = class extends m(d) {
                         <uui-table-cell>${this._formatSize(i.size)}</uui-table-cell>
                         <uui-table-cell>${this._formatSize(e.size)}</uui-table-cell>
                         <uui-table-cell>
-                            <uui-tag look="secondary" color="${a === 0 ? "default" : a > 0 ? "warning" : "positive"}">
-                                ${t}
+                            <uui-tag look="secondary" color="${t === 0 ? "default" : t > 0 ? "warning" : "positive"}">
+                                ${o}
                             </uui-tag>
                         </uui-table-cell>
                     </uui-table-row>
@@ -393,7 +568,7 @@ let s = class extends m(d) {
                         <uui-table-cell>${this._formatDate(e.lastModified)}</uui-table-cell>
                         <uui-table-cell></uui-table-cell>
                     </uui-table-row>
-                    ${i.uploader ? o`
+                    ${i.uploader ? s`
                         <uui-table-row>
                             <uui-table-cell><strong>Uploaded By</strong></uui-table-cell>
                             <uui-table-cell>${i.uploader.replace(/_/g, " ")}</uui-table-cell>
@@ -407,9 +582,9 @@ let s = class extends m(d) {
   }
   render() {
     if (this._loading)
-      return o`<div class="loader"><uui-loader></uui-loader> Fetching snapshots...</div>`;
+      return s`<div class="loader"><uui-loader></uui-loader> Fetching snapshots...</div>`;
     if (this._versions.length === 0)
-      return o`
+      return s`
                 <uui-box>
                     <div style="display: flex; align-items: center; gap: var(--uui-size-space-3);">
                         <uui-icon name="info" style="color: var(--uui-color-primary);"></uui-icon>
@@ -417,11 +592,48 @@ let s = class extends m(d) {
                     </div>
                 </uui-box>
             `;
-    const e = this._versions.length === 1, i = this._pagedVersions, a = (this._currentPage - 1) * this._pageSize;
-    return o`
+    const e = this._versions.length === 1, i = this._pagedVersions, t = (this._currentPage - 1) * this._pageSize, o = this._selectedSnapshots.size > 0;
+    return s`
             <div class="snapshot-container">
+
+                <!-- Bulk action toolbar -->
+                ${o ? s`
+                    <div class="bulk-toolbar">
+                        <span class="bulk-toolbar-count">
+                            <uui-icon name="icon-check"></uui-icon>
+                            ${this._selectedSnapshots.size} snapshot${this._selectedSnapshots.size > 1 ? "s" : ""} selected
+                        </span>
+                        <div class="bulk-toolbar-actions">
+                            <uui-button
+                                look="secondary"
+                                compact
+                                @click="${this._clearSelection}">
+                                Clear Selection
+                            </uui-button>
+                            <uui-button
+                                look="primary"
+                                color="danger"
+                                compact
+                                ?disabled="${this._isDeleting}"
+                                @click="${this._bulkDeleteSnapshots}">
+                                <uui-icon name="icon-trash"></uui-icon>
+                                ${this._isDeleting ? "Deleting..." : `Delete ${this._selectedSnapshots.size} Snapshot${this._selectedSnapshots.size > 1 ? "s" : ""}`}
+                            </uui-button>
+                        </div>
+                    </div>
+                ` : ""}
+
                 <uui-table>
                     <uui-table-head>
+                        <uui-table-head-cell style="width: 40px;">
+                            <input
+                                type="checkbox"
+                                .checked="${this._allPageSelected}"
+                                @change="${this._toggleSelectAll}"
+                                title="Select all on this page"
+                                class="select-checkbox"
+                            />
+                        </uui-table-head-cell>
                         <uui-table-head-cell>Version Filename</uui-table-head-cell>
                         <uui-table-head-cell>Date Uploaded</uui-table-head-cell>
                         <uui-table-head-cell>Uploaded By</uui-table-head-cell>
@@ -429,57 +641,79 @@ let s = class extends m(d) {
                         <uui-table-head-cell>Actions</uui-table-head-cell>
                     </uui-table-head>
 
-                    ${i.map((t, r) => o`
-                        <uui-table-row>
-                            <uui-table-cell>
-                                ${this._isImage(t.name) ? o`
-                                        <button 
-                                            class="filename-link" 
-                                            @click="${() => this._openImagePreview(t)}"
-                                            title="Click to preview image">
-                                            <uui-icon name="icon-picture"></uui-icon>
-                                            ${t.name}
-                                        </button>
-                                    ` : o`<span>${t.name}</span>`}
-                            </uui-table-cell>
-                            <uui-table-cell>${this._formatDate(t.date)}</uui-table-cell>
-                            <uui-table-cell>${t.uploader.replace(/_/g, " ")}</uui-table-cell>
-                            <uui-table-cell>
-                                ${this._renderStatus(t, a + r)}
-                            </uui-table-cell>
-                            <uui-table-cell>
-                                <div style="display: flex; gap: 8px;">
-                                    <uui-button
-                                        look="secondary"
-                                        compact
-                                        ?disabled="${a + r === 0}"
-                                        title="${a + r === 0 ? "This is the latest version" : "Compare with current file"}"
-                                        @click="${() => this._openComparison(t)}">
-                                        <uui-icon name="icon-split"></uui-icon> Compare
-                                    </uui-button>
-                                    <uui-button 
-                                        look="secondary" 
-                                        compact 
-                                        href="${t.url}" 
-                                        target="_blank">
-                                        <uui-icon name="icon-download-alt"></uui-icon> Download
-                                    </uui-button>
-                                    <uui-button 
-                                        look="primary" 
-                                        color="positive"
-                                        compact
-                                        ?disabled="${e || this._isRestoring || a + r === 0}"
-                                        title="${e ? "Cannot restore when only one version exists" : a + r === 0 ? "This is already the latest version" : "Restore this version"}"
-                                        @click="${() => this._restoreVersion(t)}">
-                                        <uui-icon name="icon-refresh"></uui-icon> ${this._isRestoring ? "Restoring..." : "Restore"}
-                                    </uui-button>
-                                </div>
-                            </uui-table-cell>
-                        </uui-table-row>
-                    `)}
+                    ${i.map((a, u) => {
+      const d = t + u, c = d === 0, h = this._selectedSnapshots.has(a.name);
+      return s`
+                            <uui-table-row class="${h ? "row-selected" : ""}">
+                                <uui-table-cell style="width: 40px;">
+                                    <input
+                                        type="checkbox"
+                                        .checked="${h}"
+                                        ?disabled="${c}"
+                                        @change="${() => this._toggleSelection(a.name)}"
+                                        title="${c ? "Cannot select the latest version" : "Select this snapshot"}"
+                                        class="select-checkbox"
+                                    />
+                                </uui-table-cell>
+                                <uui-table-cell>
+                                    ${this._isImage(a.name) ? s`
+                                            <button 
+                                                class="filename-link" 
+                                                @click="${() => this._openImagePreview(a)}"
+                                                title="Click to preview image">
+                                                <uui-icon name="icon-picture"></uui-icon>
+                                                ${a.name}
+                                            </button>
+                                        ` : s`<span>${a.name}</span>`}
+                                </uui-table-cell>
+                                <uui-table-cell>${this._formatDate(a.date)}</uui-table-cell>
+                                <uui-table-cell>${a.uploader.replace(/_/g, " ")}</uui-table-cell>
+                                <uui-table-cell>
+                                    ${this._renderStatus(a, d)}
+                                </uui-table-cell>
+                                <uui-table-cell>
+                                    <div style="display: flex; gap: 8px;">
+                                        <uui-button
+                                            look="secondary"
+                                            compact
+                                            ?disabled="${c}"
+                                            title="${c ? "This is the latest version" : "Compare with current file"}"
+                                            @click="${() => this._openComparison(a)}">
+                                            <uui-icon name="icon-split"></uui-icon> Compare
+                                        </uui-button>
+                                        <uui-button 
+                                            look="secondary" 
+                                            compact 
+                                            href="${a.url}" 
+                                            target="_blank">
+                                            <uui-icon name="icon-download-alt"></uui-icon> Download
+                                        </uui-button>
+                                        <uui-button 
+                                            look="primary" 
+                                            color="positive"
+                                            compact
+                                            ?disabled="${e || this._isRestoring || c}"
+                                            title="${e ? "Cannot restore when only one version exists" : c ? "This is already the latest version" : "Restore this version"}"
+                                            @click="${() => this._restoreVersion(a)}">
+                                            <uui-icon name="icon-refresh"></uui-icon> ${this._isRestoring ? "Restoring..." : "Restore"}
+                                        </uui-button>
+                                        <uui-button
+                                            look="secondary"
+                                            color="danger"
+                                            compact
+                                            ?disabled="${c || this._isDeleting}"
+                                            title="${c ? "Cannot delete the latest version" : "Delete this snapshot"}"
+                                            @click="${() => this._deleteSnapshot(a)}">
+                                            <uui-icon name="icon-trash"></uui-icon>
+                                        </uui-button>
+                                    </div>
+                                </uui-table-cell>
+                            </uui-table-row>
+                        `;
+    })}
                 </uui-table>
 
-                ${this._totalPages > 1 ? o`
+                ${this._totalPages > 1 ? s`
                     <div class="pagination-container">
                         <uui-pagination
                             .current="${this._currentPage}"
@@ -490,7 +724,7 @@ let s = class extends m(d) {
                 ` : ""}
 
                 <!-- Image Preview Side Panel -->
-                ${this._showPreview ? o`
+                ${this._showPreview ? s`
                     <div class="preview-overlay" @click="${this._closePreview}"></div>
                     <div class="preview-panel">
                         <div class="preview-header">
@@ -510,7 +744,7 @@ let s = class extends m(d) {
                                 <strong>Filename:</strong> <br/>${this._previewImageName}
                             </div>
                             <div class="preview-image-container">
-                                ${this._previewImageUrl ? o`
+                                ${this._previewImageUrl ? s`
                                         <img 
                                             src="${this._previewImageUrl}" 
                                             alt="${this._previewImageName}"
@@ -523,7 +757,7 @@ let s = class extends m(d) {
       });
     }}"
                                         />
-                                    ` : o`<uui-loader></uui-loader>`}
+                                    ` : s`<uui-loader></uui-loader>`}
                             </div>
                             <div class="preview-actions">
                                 <uui-button 
@@ -558,7 +792,7 @@ let s = class extends m(d) {
     });
   }
 };
-s.styles = p`
+n.styles = g`
         :host {
             display: block;
             margin-bottom: 20px;
@@ -611,6 +845,50 @@ s.styles = p`
         .filename-link uui-icon {
             margin-right: 4px;
             color: var(--uui-color-primary);
+        }
+
+        /* Selection checkbox */
+        .select-checkbox {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+            accent-color: var(--uui-color-interactive);
+        }
+
+        .select-checkbox:disabled {
+            cursor: not-allowed;
+            opacity: 0.3;
+        }
+
+        /* Selected row highlight */
+        .row-selected {
+            background-color: color-mix(in srgb, var(--uui-color-selected) 10%, transparent);
+        }
+
+        /* Bulk action toolbar */
+        .bulk-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--uui-size-space-3) var(--uui-size-space-4);
+            margin-bottom: var(--uui-size-space-3);
+            background: color-mix(in srgb, var(--uui-color-selected) 8%, var(--uui-color-surface));
+            border: 1px solid var(--uui-color-selected);
+            border-radius: var(--uui-border-radius);
+            animation: fadeIn 0.2s ease-in;
+        }
+
+        .bulk-toolbar-count {
+            display: flex;
+            align-items: center;
+            gap: var(--uui-size-space-2);
+            font-weight: 600;
+            color: var(--uui-color-selected);
+        }
+
+        .bulk-toolbar-actions {
+            display: flex;
+            gap: var(--uui-size-space-2);
         }
 
         /* Pagination Styles */
@@ -908,54 +1186,65 @@ s.styles = p`
                 width: 100%;
                 height: 1px;
             }
+            .bulk-toolbar {
+                flex-direction: column;
+                gap: var(--uui-size-space-3);
+                text-align: center;
+            }
         }
     `;
-n([
+r([
   l()
-], s.prototype, "_versions", 2);
-n([
+], n.prototype, "_versions", 2);
+r([
   l()
-], s.prototype, "_loading", 2);
-n([
+], n.prototype, "_loading", 2);
+r([
   l()
-], s.prototype, "_mediaKey", 2);
-n([
+], n.prototype, "_mediaKey", 2);
+r([
   l()
-], s.prototype, "_previewImageUrl", 2);
-n([
+], n.prototype, "_previewImageUrl", 2);
+r([
   l()
-], s.prototype, "_previewImageName", 2);
-n([
+], n.prototype, "_previewImageName", 2);
+r([
   l()
-], s.prototype, "_showPreview", 2);
-n([
+], n.prototype, "_showPreview", 2);
+r([
   l()
-], s.prototype, "_isRestoring", 2);
-n([
+], n.prototype, "_isRestoring", 2);
+r([
   l()
-], s.prototype, "_currentPage", 2);
-n([
+], n.prototype, "_currentPage", 2);
+r([
   l()
-], s.prototype, "_showComparison", 2);
-n([
+], n.prototype, "_showComparison", 2);
+r([
   l()
-], s.prototype, "_comparisonSnapshot", 2);
-n([
+], n.prototype, "_comparisonSnapshot", 2);
+r([
   l()
-], s.prototype, "_comparisonCurrent", 2);
-n([
+], n.prototype, "_comparisonCurrent", 2);
+r([
   l()
-], s.prototype, "_comparisonLoading", 2);
-n([
+], n.prototype, "_comparisonLoading", 2);
+r([
   l()
-], s.prototype, "_comparisonMode", 2);
-n([
+], n.prototype, "_comparisonMode", 2);
+r([
   l()
-], s.prototype, "_sliderPosition", 2);
-s = n([
-  h("snapshot-viewer")
-], s);
+], n.prototype, "_sliderPosition", 2);
+r([
+  l()
+], n.prototype, "_selectedSnapshots", 2);
+r([
+  l()
+], n.prototype, "_isDeleting", 2);
+n = r([
+  b("snapshot-viewer")
+], n);
 export {
-  s as SnapshotViewerElement
+  n as SnapshotViewerElement
 };
 //# sourceMappingURL=umbraco-media-snapshot.js.map

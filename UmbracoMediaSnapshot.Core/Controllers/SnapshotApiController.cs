@@ -491,6 +491,141 @@
                 return Problem("Failed to retrieve current media file");
             }
         }
+
+        /// <summary>
+        /// Deletes a single snapshot blob for a media item
+        /// </summary>
+        /// <param name="request">The request<see cref="DeleteSnapshotRequest"/></param>
+        /// <param name="cancellationToken">The cancellationToken<see cref="CancellationToken"/></param>
+        /// <returns>The <see cref="Task{IActionResult}"/></returns>
+        [HttpPost("delete")]
+        [ProducesResponseType(typeof(DeleteResultModel), 200)]
+        [ProducesResponseType(typeof(ProblemDetails), 400)]
+        [ProducesResponseType(typeof(ProblemDetails), 500)]
+        public async Task<IActionResult> DeleteSnapshot([FromBody] DeleteSnapshotRequest request, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request.SnapshotName))
+                    return BadRequest("Snapshot name is required");
+
+                if (request.SnapshotName.Contains("..") || request.SnapshotName.Contains('/') || request.SnapshotName.Contains('\\'))
+                    return BadRequest("Invalid snapshot name");
+
+                var media = _mediaService.GetById(request.MediaKey);
+                if (media == null) return NotFound("Media item not found");
+
+                var umbracoFileValue = media.GetValue<string>("umbracoFile");
+                string? folderPath = _blobService.ExtractFolderPath(umbracoFileValue);
+
+                if (string.IsNullOrEmpty(folderPath))
+                    return BadRequest("Unable to determine media folder path");
+
+                var snapshotContainer = _blobService.GetSnapshotContainer();
+                var snapshotBlobPath = $"{folderPath}/{request.SnapshotName}";
+                var snapshotBlob = snapshotContainer.GetBlobClient(snapshotBlobPath);
+
+                if (!await snapshotBlob.ExistsAsync(cancellationToken))
+                    return NotFound("Snapshot file not found");
+
+                await snapshotBlob.DeleteAsync(cancellationToken: cancellationToken);
+
+                _logger.LogInformation("Deleted snapshot {SnapshotName} for media {MediaKey}",
+                    request.SnapshotName, request.MediaKey);
+
+                return Ok(new DeleteResultModel
+                {
+                    Success = true,
+                    Message = $"Successfully deleted snapshot: {request.SnapshotName}",
+                    DeletedCount = 1
+                });
+            }
+            catch (RequestFailedException ex)
+            {
+                _logger.LogError(ex, "Azure storage error while deleting snapshot {SnapshotName} for media {MediaKey}",
+                    request.SnapshotName, request.MediaKey);
+                return Problem("Failed to delete snapshot due to storage error");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting snapshot {SnapshotName} for media {MediaKey}",
+                    request.SnapshotName, request.MediaKey);
+                return Problem("An unexpected error occurred while deleting the snapshot");
+            }
+        }
+
+        /// <summary>
+        /// Deletes multiple snapshot blobs for a media item in one operation
+        /// </summary>
+        /// <param name="request">The request<see cref="BulkDeleteSnapshotsRequest"/></param>
+        /// <param name="cancellationToken">The cancellationToken<see cref="CancellationToken"/></param>
+        /// <returns>The <see cref="Task{IActionResult}"/></returns>
+        [HttpPost("delete-bulk")]
+        [ProducesResponseType(typeof(DeleteResultModel), 200)]
+        [ProducesResponseType(typeof(ProblemDetails), 400)]
+        [ProducesResponseType(typeof(ProblemDetails), 500)]
+        public async Task<IActionResult> BulkDeleteSnapshots([FromBody] BulkDeleteSnapshotsRequest request, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (request.SnapshotNames is not { Count: > 0 })
+                    return BadRequest("At least one snapshot name is required");
+
+                // Validate all names before deleting any
+                foreach (var name in request.SnapshotNames)
+                {
+                    if (string.IsNullOrWhiteSpace(name) || name.Contains("..") || name.Contains('/') || name.Contains('\\'))
+                        return BadRequest($"Invalid snapshot name: {name}");
+                }
+
+                var media = _mediaService.GetById(request.MediaKey);
+                if (media == null) return NotFound("Media item not found");
+
+                var umbracoFileValue = media.GetValue<string>("umbracoFile");
+                string? folderPath = _blobService.ExtractFolderPath(umbracoFileValue);
+
+                if (string.IsNullOrEmpty(folderPath))
+                    return BadRequest("Unable to determine media folder path");
+
+                var snapshotContainer = _blobService.GetSnapshotContainer();
+                int deletedCount = 0;
+
+                foreach (var snapshotName in request.SnapshotNames)
+                {
+                    var snapshotBlobPath = $"{folderPath}/{snapshotName}";
+                    var deleted = await snapshotContainer.DeleteBlobIfExistsAsync(snapshotBlobPath, cancellationToken: cancellationToken);
+
+                    if (deleted)
+                    {
+                        deletedCount++;
+                        _logger.LogInformation("Bulk delete: removed snapshot {SnapshotName} for media {MediaKey}",
+                            snapshotName, request.MediaKey);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Bulk delete: snapshot {SnapshotName} not found for media {MediaKey}",
+                            snapshotName, request.MediaKey);
+                    }
+                }
+
+                return Ok(new DeleteResultModel
+                {
+                    Success = true,
+                    Message = $"Successfully deleted {deletedCount} of {request.SnapshotNames.Count} snapshot(s)",
+                    DeletedCount = deletedCount
+                });
+            }
+            catch (RequestFailedException ex)
+            {
+                _logger.LogError(ex, "Azure storage error during bulk delete for media {MediaKey}", request.MediaKey);
+                return Problem("Failed to delete snapshots due to storage error");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during bulk delete for media {MediaKey}", request.MediaKey);
+                return Problem("An unexpected error occurred while deleting snapshots");
+            }
+        }
     }
 
 }
