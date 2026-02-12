@@ -66,6 +66,16 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
     @state()
     private _isDeleting = false;
 
+    // --- Note editing state ---
+    @state()
+    private _editingNoteName: string | null = null;
+
+    @state()
+    private _editingNoteValue: string = '';
+
+    @state()
+    private _savingNote = false;
+
     private _pageSize = 10;
 
     private _authContext?: typeof UMB_AUTH_CONTEXT.TYPE;
@@ -621,33 +631,16 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
     }
 
     /**
-     * Renders the status tag for a snapshot version based on its metadata
+     * Renders a compact inline status badge for a snapshot version
      */
     private _renderStatus(version: any, index: number) {
         if (version.isRestored) {
-            return html`
-                <uui-tag look="primary" color="positive">
-                    <uui-icon name="icon-refresh"></uui-icon>
-                    Restored ${version.restoredDate ? this._formatDate(version.restoredDate) : ''}
-                </uui-tag>
-            `;
+            return html`<uui-tag class="status-badge" look="primary" color="positive">Restored</uui-tag>`;
         }
-
-        // The first item (index 0) in the sorted-by-date-descending list is the latest version
         if (index === 0) {
-            return html`
-                <uui-tag look="primary" color="default">
-                    <uui-icon name="icon-check"></uui-icon>
-                    Latest
-                </uui-tag>
-            `;
+            return html`<uui-tag class="status-badge" look="primary" color="default">Latest</uui-tag>`;
         }
-
-        return html`
-            <uui-tag look="secondary" color="default">
-                Original
-            </uui-tag>
-        `;
+        return html``;
     }
 
     /**
@@ -934,11 +927,9 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                                 class="select-checkbox"
                             />
                         </uui-table-head-cell>
-                        <uui-table-head-cell>Version Filename</uui-table-head-cell>
-                        <uui-table-head-cell>Date Uploaded</uui-table-head-cell>
-                        <uui-table-head-cell>Uploaded By</uui-table-head-cell>
-                        <uui-table-head-cell>Status</uui-table-head-cell>
-                        <uui-table-head-cell>Actions</uui-table-head-cell>
+                        <uui-table-head-cell>Version</uui-table-head-cell>
+                        <uui-table-head-cell>Uploaded</uui-table-head-cell>
+                        <uui-table-head-cell style="text-align: right;">Actions</uui-table-head-cell>
                     </uui-table-head>
 
                     ${pagedVersions.map((v, i) => {
@@ -958,50 +949,66 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                                         class="select-checkbox"
                                     />
                                 </uui-table-cell>
+
+                                <!-- Version: filename + status badge + note -->
                                 <uui-table-cell>
-                                    ${this._isImage(v.name) 
-                                        ? html`
-                                            <button 
-                                                class="filename-link" 
-                                                @click="${() => this._openImagePreview(v)}"
-                                                title="Click to preview image">
-                                                <uui-icon name="icon-picture"></uui-icon>
-                                                ${v.name}
-                                            </button>
-                                        `
-                                        : html`<span>${v.name}</span>`
-                                    }
+                                    <div class="version-cell">
+                                        <div class="version-cell-primary">
+                                            ${this._isImage(v.name)
+                                                ? html`
+                                                    <button
+                                                        class="filename-link"
+                                                        @click="${() => this._openImagePreview(v)}"
+                                                        title="Click to preview image">
+                                                        <uui-icon name="icon-picture"></uui-icon>
+                                                        ${v.name}
+                                                    </button>
+                                                `
+                                                : html`<span class="filename-text">${v.name}</span>`
+                                            }
+                                            ${this._renderStatus(v, globalIndex)}
+                                        </div>
+                                        <div class="version-cell-secondary">
+                                            ${this._renderNoteCell(v)}
+                                        </div>
+                                    </div>
                                 </uui-table-cell>
-                                <uui-table-cell>${this._formatDate(v.date)}</uui-table-cell>
-                                <uui-table-cell>${v.uploader.replace(/_/g, ' ')}</uui-table-cell>
+
+                                <!-- Uploaded: date + uploader stacked -->
                                 <uui-table-cell>
-                                    ${this._renderStatus(v, globalIndex)}
+                                    <div class="upload-cell">
+                                        <span class="upload-date">${this._formatDate(v.date)}</span>
+                                        <span class="upload-user">${v.uploader.replace(/_/g, ' ')}</span>
+                                    </div>
                                 </uui-table-cell>
+
+                                <!-- Actions: icon-only buttons -->
                                 <uui-table-cell>
-                                    <div style="display: flex; gap: 8px;">
+                                    <div class="actions-cell">
                                         <uui-button
                                             look="secondary"
                                             compact
                                             ?disabled="${isLatest}"
                                             title="${isLatest ? 'This is the latest version' : 'Compare with current file'}"
                                             @click="${() => this._openComparison(v)}">
-                                            <uui-icon name="icon-split"></uui-icon> Compare
+                                            <uui-icon name="icon-split"></uui-icon>
                                         </uui-button>
-                                        <uui-button 
-                                            look="secondary" 
-                                            compact 
-                                            href="${v.url}" 
-                                            target="_blank">
-                                            <uui-icon name="icon-download-alt"></uui-icon> Download
+                                        <uui-button
+                                            look="secondary"
+                                            compact
+                                            href="${v.url}"
+                                            target="_blank"
+                                            title="Download this version">
+                                            <uui-icon name="icon-download-alt"></uui-icon>
                                         </uui-button>
-                                        <uui-button 
-                                            look="primary" 
+                                        <uui-button
+                                            look="primary"
                                             color="positive"
                                             compact
                                             ?disabled="${isSingleVersion || this._isRestoring || isLatest}"
                                             title="${isSingleVersion ? 'Cannot restore when only one version exists' : isLatest ? 'This is already the latest version' : 'Restore this version'}"
                                             @click="${() => this._restoreVersion(v)}">
-                                            <uui-icon name="icon-refresh"></uui-icon> ${this._isRestoring ? 'Restoring...' : 'Restore'}
+                                            <uui-icon name="icon-refresh"></uui-icon>
                                         </uui-button>
                                         <uui-button
                                             look="secondary"
@@ -1101,6 +1108,142 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
             hour: '2-digit',
             minute: '2-digit'
         });
+    }
+
+    // --- Note operations ---
+
+    /**
+     * Enters inline edit mode for a snapshot's note
+     */
+    private _startEditNote(version: any) {
+        this._editingNoteName = version.name;
+        this._editingNoteValue = version.note || '';
+    }
+
+    /**
+     * Cancels note editing
+     */
+    private _cancelEditNote() {
+        this._editingNoteName = null;
+        this._editingNoteValue = '';
+    }
+
+    /**
+     * Saves the note to the snapshot's blob metadata
+     */
+    private async _saveNote(version: any) {
+        if (this._savingNote) return;
+
+        this._savingNote = true;
+
+        const token = await this._authContext?.getLatestToken();
+        if (!token) {
+            this._notificationContext?.peek('danger', {
+                data: { headline: 'Authentication Error', message: 'No authentication token available.' }
+            });
+            this._savingNote = false;
+            return;
+        }
+
+        try {
+            const response = await fetch('/umbraco/management/api/v1/snapshot/update-note', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    mediaKey: this._mediaKey,
+                    snapshotName: version.name,
+                    note: this._editingNoteValue
+                })
+            });
+
+            if (response.ok) {
+                // Update the local version object so the UI reflects the change immediately
+                version.note = this._editingNoteValue.trim() || null;
+                this._editingNoteName = null;
+                this._editingNoteValue = '';
+                this.requestUpdate();
+            } else {
+                const error = await response.json();
+                this._notificationContext?.peek('danger', {
+                    data: { headline: 'Save Failed', message: error.detail || 'Failed to save note' }
+                });
+            }
+        } catch (error) {
+            console.error("Failed to save note:", error);
+            this._notificationContext?.peek('danger', {
+                data: { headline: 'Error', message: 'An error occurred while saving the note.' }
+            });
+        } finally {
+            this._savingNote = false;
+        }
+    }
+
+    /**
+     * Handles keydown in the note input — Enter saves, Escape cancels
+     */
+    private _onNoteKeydown(e: KeyboardEvent, version: any) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            this._saveNote(version);
+        } else if (e.key === 'Escape') {
+            this._cancelEditNote();
+        }
+    }
+
+    /**
+     * Renders the note cell for a snapshot row
+     */
+    private _renderNoteCell(version: any) {
+        const isEditing = this._editingNoteName === version.name;
+
+        if (isEditing) {
+            return html`
+                <div class="note-edit">
+                    <input
+                        type="text"
+                        class="note-input"
+                        maxlength="500"
+                        placeholder="Add a note…"
+                        .value="${this._editingNoteValue}"
+                        @input="${(e: Event) => this._editingNoteValue = (e.target as HTMLInputElement).value}"
+                        @keydown="${(e: KeyboardEvent) => this._onNoteKeydown(e, version)}"
+                    />
+                    <div class="note-edit-actions">
+                        <uui-button
+                            look="primary"
+                            compact
+                            ?disabled="${this._savingNote}"
+                            @click="${() => this._saveNote(version)}">
+                            <uui-icon name="icon-check"></uui-icon>
+                        </uui-button>
+                        <uui-button
+                            look="secondary"
+                            compact
+                            @click="${this._cancelEditNote}">
+                            <uui-icon name="icon-delete"></uui-icon>
+                        </uui-button>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (version.note) {
+            return html`
+                <button class="note-display" @click="${() => this._startEditNote(version)}" title="Click to edit note">
+                    <uui-icon name="icon-edit"></uui-icon>
+                    <span class="note-text">${version.note}</span>
+                </button>
+            `;
+        }
+
+        return html`
+            <button class="note-add" @click="${() => this._startEditNote(version)}" title="Add a note">
+                <uui-icon name="icon-edit"></uui-icon> Add note
+            </button>
+        `;
     }
 
     static styles = css`
@@ -1519,6 +1662,144 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
             width: 1px;
             height: 20px;
             background: var(--uui-color-border);
+        }
+
+        /* Note cell */
+        .note-edit {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .note-input {
+            flex: 1;
+            padding: 4px 8px;
+            border: 1px solid var(--uui-color-border);
+            border-radius: var(--uui-border-radius);
+            font: inherit;
+            font-size: 0.85rem;
+            min-width: 120px;
+            background: var(--uui-color-surface);
+            color: var(--uui-color-text);
+        }
+
+        .note-input:focus {
+            outline: none;
+            border-color: var(--uui-color-interactive);
+            box-shadow: 0 0 0 1px var(--uui-color-interactive);
+        }
+
+        .note-edit-actions {
+            display: flex;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        .note-display {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px 4px;
+            font: inherit;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--uui-color-text);
+            border-radius: var(--uui-border-radius);
+            transition: background 0.2s;
+            max-width: 200px;
+        }
+
+        .note-display:hover {
+            background: var(--uui-color-surface-alt);
+        }
+
+        .note-display uui-icon {
+            color: var(--uui-color-text-alt);
+            font-size: 0.75rem;
+            flex-shrink: 0;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .note-display:hover uui-icon {
+            opacity: 1;
+        }
+
+        .note-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .note-add {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px 4px;
+            font: inherit;
+            font-size: 0.8rem;
+            color: var(--uui-color-text-alt);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+
+        .note-add:hover {
+            opacity: 1;
+            color: var(--uui-color-interactive);
+        }
+
+        /* Version cell: stacked filename + note */
+        .version-cell {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .version-cell-primary {
+            display: flex;
+            align-items: center;
+            gap: var(--uui-size-space-2);
+        }
+
+        .version-cell-secondary {
+            padding-left: 0;
+        }
+
+        .filename-text {
+            font-weight: 500;
+        }
+
+        .status-badge {
+            flex-shrink: 0;
+            font-size: 0.7rem;
+        }
+
+        /* Upload cell: date + user stacked */
+        .upload-cell {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .upload-date {
+            font-size: 0.85rem;
+        }
+
+        .upload-user {
+            font-size: 0.8rem;
+            color: var(--uui-color-text-alt);
+        }
+
+        /* Actions cell: right-aligned icon buttons */
+        .actions-cell {
+            display: flex;
+            gap: 4px;
+            justify-content: flex-end;
         }
 
         @media (max-width: 768px) {

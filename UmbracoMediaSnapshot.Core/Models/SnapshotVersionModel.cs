@@ -45,5 +45,10 @@
         /// Gets or sets the original snapshot this was restored from
         /// </summary>
         public string? RestoredFrom { get; set; }
+
+        /// <summary>
+        /// Gets or sets the user-provided note/label for this snapshot
+        /// </summary>
+        public string? Note { get; set; }
     }
 }

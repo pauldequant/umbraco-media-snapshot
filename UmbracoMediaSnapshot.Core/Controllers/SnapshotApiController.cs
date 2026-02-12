@@ -117,7 +117,8 @@
                             && DateTime.TryParse(restoredDateStr, null, System.Globalization.DateTimeStyles.RoundtripKind, out var parsedRestoredDate)
                             ? parsedRestoredDate
                             : null,
-                        RestoredFrom = blobItem.Metadata.TryGetValue("RestoredFrom", out var restoredFrom) ? restoredFrom : null
+                        RestoredFrom = blobItem.Metadata.TryGetValue("RestoredFrom", out var restoredFrom) ? restoredFrom : null,
+                        Note = blobItem.Metadata.TryGetValue("SnapshotNote", out var note) ? note : null
                     });
                 }
 
@@ -781,6 +782,77 @@
             {
                 _logger.LogError(ex, "Error during bulk delete for media {MediaKey}", request.MediaKey);
                 return Problem("An unexpected error occurred while deleting snapshots");
+            }
+        }
+
+        /// <summary>
+        /// Updates the note/label on a snapshot blob's metadata
+        /// </summary>
+        /// <param name="request">The request<see cref="UpdateSnapshotNoteRequest"/></param>
+        /// <param name="cancellationToken">The cancellationToken<see cref="CancellationToken"/></param>
+        /// <returns>The <see cref="Task{IActionResult}"/></returns>
+        [HttpPost("update-note")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(typeof(ProblemDetails), 400)]
+        [ProducesResponseType(typeof(ProblemDetails), 404)]
+        [ProducesResponseType(typeof(ProblemDetails), 500)]
+        public async Task<IActionResult> UpdateSnapshotNote([FromBody] UpdateSnapshotNoteRequest request, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request.SnapshotName))
+                    return BadRequest("Snapshot name is required");
+
+                if (request.SnapshotName.Contains("..") || request.SnapshotName.Contains('/') || request.SnapshotName.Contains('\\'))
+                    return BadRequest("Invalid snapshot name");
+
+                if (request.Note.Length > 500)
+                    return BadRequest("Note must be 500 characters or fewer");
+
+                var media = _mediaService.GetById(request.MediaKey);
+                if (media == null) return NotFound("Media item not found");
+
+                var umbracoFileValue = media.GetValue<string>("umbracoFile");
+                string? folderPath = _blobService.ExtractFolderPath(umbracoFileValue);
+
+                if (string.IsNullOrEmpty(folderPath))
+                    return BadRequest("Unable to determine media folder path");
+
+                var snapshotContainer = _blobService.GetSnapshotContainer();
+                var snapshotBlobPath = $"{folderPath}/{request.SnapshotName}";
+                var snapshotBlob = snapshotContainer.GetBlobClient(snapshotBlobPath);
+
+                if (!await snapshotBlob.ExistsAsync(cancellationToken))
+                    return NotFound("Snapshot file not found");
+
+                var properties = await snapshotBlob.GetPropertiesAsync(cancellationToken: cancellationToken);
+                var metadata = new Dictionary<string, string>(properties.Value.Metadata);
+
+                if (string.IsNullOrWhiteSpace(request.Note))
+                {
+                    metadata.Remove("SnapshotNote");
+                }
+                else
+                {
+                    metadata["SnapshotNote"] = request.Note.Trim();
+                }
+
+                await snapshotBlob.SetMetadataAsync(metadata, cancellationToken: cancellationToken);
+
+                _logger.LogInformation("Updated note on snapshot {SnapshotName} for media {MediaKey}",
+                    request.SnapshotName, request.MediaKey);
+
+                return Ok(new { success = true, message = "Note updated successfully" });
+            }
+            catch (RequestFailedException ex)
+            {
+                _logger.LogError(ex, "Azure storage error while updating note on snapshot {SnapshotName}", request.SnapshotName);
+                return Problem("Failed to update snapshot note");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating note on snapshot {SnapshotName}", request.SnapshotName);
+                return Problem("An unexpected error occurred while updating the note");
             }
         }
     }

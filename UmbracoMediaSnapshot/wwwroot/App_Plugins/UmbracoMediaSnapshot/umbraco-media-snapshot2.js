@@ -214,7 +214,7 @@ let s = class extends g(d) {
                             <span class="setting-label">Tracked Media Types</span>
                             <span class="setting-value setting-value-tags">
                                 ${a.settings.trackedMediaTypes.map((e) => t`
-                                    <uui-tag look="secondary">${e}</uui-tag>
+                                    <uui-tag look="primary">${e}</uui-tag>
                                 `)}
                             </span>
                         </div>
