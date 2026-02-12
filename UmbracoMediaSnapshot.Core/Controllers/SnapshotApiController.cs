@@ -437,6 +437,60 @@
                 return null;
             }
         }
+
+        /// <summary>
+        /// Gets a temporary SAS URL for the current (live) media file
+        /// so the front-end can display it alongside a snapshot for comparison
+        /// </summary>
+        /// <param name="mediaKey">The mediaKey<see cref="Guid"/></param>
+        /// <param name="cancellationToken">The cancellationToken<see cref="CancellationToken"/></param>
+        /// <returns>The <see cref="Task{IActionResult}"/></returns>
+        [HttpGet("current/{mediaKey:guid}")]
+        [ProducesResponseType(typeof(CurrentMediaModel), 200)]
+        [ProducesResponseType(typeof(ProblemDetails), 404)]
+        [ProducesResponseType(typeof(ProblemDetails), 500)]
+        public async Task<IActionResult> GetCurrentMediaUrl(Guid mediaKey, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var media = _mediaService.GetById(mediaKey);
+                if (media == null) return NotFound();
+
+                var umbracoFileValue = media.GetValue<string>("umbracoFile");
+                string? rawPath = _blobService.GetRawBlobPath(umbracoFileValue);
+                if (string.IsNullOrEmpty(rawPath)) return NotFound("No file associated with this media item");
+
+                var mediaContainer = _blobService.GetMediaContainer();
+                var blobClient = mediaContainer.GetBlobClient(rawPath);
+
+                if (!await blobClient.ExistsAsync(cancellationToken))
+                    return NotFound("Media blob not found in storage");
+
+                var properties = await blobClient.GetPropertiesAsync(cancellationToken: cancellationToken);
+
+                var sasUrl = blobClient.GenerateSasUri(
+                    BlobSasPermissions.Read,
+                    DateTimeOffset.UtcNow.AddHours(_settings.SasTokenExpirationHours));
+
+                return Ok(new CurrentMediaModel
+                {
+                    Name = Path.GetFileName(rawPath),
+                    Url = sasUrl.ToString(),
+                    Size = properties.Value.ContentLength,
+                    ContentType = properties.Value.ContentType,
+                    LastModified = properties.Value.LastModified.DateTime
+                });
+            }
+            catch (RequestFailedException ex) when (ex.Status == 404)
+            {
+                return NotFound("Media blob not found");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving current media URL for {MediaKey}", mediaKey);
+                return Problem("Failed to retrieve current media file");
+            }
+        }
     }
 
 }

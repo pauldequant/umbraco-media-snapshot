@@ -1,23 +1,23 @@
-import { LitElement as d, html as r, css as p, state as l, customElement as h } from "@umbraco-cms/backoffice/external/lit";
-import { UmbElementMixin as g } from "@umbraco-cms/backoffice/element-api";
-import { UMB_WORKSPACE_CONTEXT as m } from "@umbraco-cms/backoffice/workspace";
+import { LitElement as d, html as o, css as p, state as l, customElement as h } from "@umbraco-cms/backoffice/external/lit";
+import { UmbElementMixin as m } from "@umbraco-cms/backoffice/element-api";
+import { UMB_WORKSPACE_CONTEXT as g } from "@umbraco-cms/backoffice/workspace";
 import { UMB_AUTH_CONTEXT as v } from "@umbraco-cms/backoffice/auth";
-import { UMB_NOTIFICATION_CONTEXT as _ } from "@umbraco-cms/backoffice/notification";
-import { UMB_MODAL_MANAGER_CONTEXT as f, UMB_CONFIRM_MODAL as b } from "@umbraco-cms/backoffice/modal";
-var w = Object.defineProperty, x = Object.getOwnPropertyDescriptor, s = (e, i, a, t) => {
-  for (var o = t > 1 ? void 0 : t ? x(i, a) : i, u = e.length - 1, c; u >= 0; u--)
-    (c = e[u]) && (o = (t ? c(i, a, o) : c(o)) || o);
-  return t && o && w(i, a, o), o;
+import { UMB_NOTIFICATION_CONTEXT as b } from "@umbraco-cms/backoffice/notification";
+import { UMB_MODAL_MANAGER_CONTEXT as f, UMB_CONFIRM_MODAL as _ } from "@umbraco-cms/backoffice/modal";
+var w = Object.defineProperty, y = Object.getOwnPropertyDescriptor, n = (e, i, a, t) => {
+  for (var r = t > 1 ? void 0 : t ? y(i, a) : i, u = e.length - 1, c; u >= 0; u--)
+    (c = e[u]) && (r = (t ? c(i, a, r) : c(r)) || r);
+  return t && r && w(i, a, r), r;
 };
-let n = class extends g(d) {
+let s = class extends m(d) {
   constructor() {
-    super(), this._versions = [], this._loading = !0, this._mediaKey = "", this._previewImageUrl = null, this._previewImageName = "", this._showPreview = !1, this._isRestoring = !1, this._currentPage = 1, this._pageSize = 10, this.consumeContext(v, (e) => {
+    super(), this._versions = [], this._loading = !0, this._mediaKey = "", this._previewImageUrl = null, this._previewImageName = "", this._showPreview = !1, this._isRestoring = !1, this._currentPage = 1, this._showComparison = !1, this._comparisonSnapshot = null, this._comparisonCurrent = null, this._comparisonLoading = !1, this._comparisonMode = "side-by-side", this._sliderPosition = 50, this._pageSize = 10, this.consumeContext(v, (e) => {
       this._authContext = e;
-    }), this.consumeContext(_, (e) => {
+    }), this.consumeContext(b, (e) => {
       this._notificationContext = e;
     }), this.consumeContext(f, (e) => {
       this._modalManagerContext = e;
-    }), this.consumeContext(m, (e) => {
+    }), this.consumeContext(g, (e) => {
       const i = e;
       i.unique && this.observe(i.unique, (a) => {
         a && a !== this._mediaKey && (this._mediaKey = a.toString(), this._currentPage = 1, this._fetchVersions(this._mediaKey));
@@ -56,6 +56,54 @@ let n = class extends g(d) {
     } finally {
       this._loading = !1;
     }
+  }
+  /**
+   * Fetches the current (live) media file metadata and SAS URL
+   */
+  async _fetchCurrentMedia() {
+    const e = await this._authContext?.getLatestToken();
+    if (!e) return null;
+    try {
+      const i = `/umbraco/management/api/v1/snapshot/current/${this._mediaKey}`, a = await fetch(i, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${e}`,
+          "Content-Type": "application/json"
+        }
+      });
+      if (a.ok)
+        return await a.json();
+    } catch (i) {
+      console.error("Failed to fetch current media:", i);
+    }
+    return null;
+  }
+  /**
+   * Opens the comparison panel for a specific snapshot version
+   */
+  async _openComparison(e) {
+    this._comparisonLoading = !0, this._comparisonSnapshot = e, this._showComparison = !0, this._sliderPosition = 50;
+    const i = await this._fetchCurrentMedia();
+    this._comparisonCurrent = i, this._comparisonLoading = !1;
+  }
+  /**
+   * Closes the comparison panel
+   */
+  _closeComparison() {
+    this._showComparison = !1, this._comparisonSnapshot = null, this._comparisonCurrent = null;
+  }
+  /**
+   * Toggles the comparison mode between side-by-side and slider
+   */
+  _toggleComparisonMode() {
+    this._comparisonMode = this._comparisonMode === "side-by-side" ? "slider" : "side-by-side";
+  }
+  /**
+   * Handles the slider input for overlay comparison
+   */
+  _onSliderInput(e) {
+    const i = e.target;
+    this._sliderPosition = parseInt(i.value, 10);
   }
   /**
    * Returns the total number of pages based on versions count and page size
@@ -108,10 +156,10 @@ let n = class extends g(d) {
       console.error("Modal manager context not available");
       return;
     }
-    const i = this._modalManagerContext.open(this, b, {
+    const i = this._modalManagerContext.open(this, _, {
       data: {
         headline: "Restore File Version",
-        content: r`
+        content: o`
                     <p>Are you sure you want to restore <strong>"${e.name}"</strong>?</p>
                     <p>This will replace the current file and create a new snapshot.</p>
                     <uui-box>
@@ -139,7 +187,7 @@ let n = class extends g(d) {
       return;
     }
     try {
-      const o = await fetch("/umbraco/management/api/v1/snapshot/restore", {
+      const r = await fetch("/umbraco/management/api/v1/snapshot/restore", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${a}`,
@@ -150,15 +198,15 @@ let n = class extends g(d) {
           snapshotName: e.name
         })
       });
-      if (o.ok) {
-        const u = await o.json();
+      if (r.ok) {
+        const u = await r.json();
         this._notificationContext?.peek("positive", {
           data: {
             headline: "Snapshot Restored",
             message: u.message
           }
         }), await this._fetchVersions(this._mediaKey);
-      } else if (o.status === 401)
+      } else if (r.status === 401)
         this._notificationContext?.peek("danger", {
           data: {
             headline: "Unauthorized",
@@ -166,7 +214,7 @@ let n = class extends g(d) {
           }
         });
       else {
-        const u = await o.json();
+        const u = await r.json();
         this._notificationContext?.peek("danger", {
           data: {
             headline: "Restore Failed",
@@ -186,30 +234,182 @@ let n = class extends g(d) {
     }
   }
   /**
+   * Formats a byte count into a human-readable size string
+   */
+  _formatSize(e) {
+    if (e === 0) return "0 B";
+    const i = ["B", "KB", "MB", "GB"], a = Math.floor(Math.log(e) / Math.log(1024));
+    return (e / Math.pow(1024, a)).toFixed(1) + " " + i[a];
+  }
+  /**
    * Renders the status tag for a snapshot version based on its metadata
    */
   _renderStatus(e, i) {
-    return e.isRestored ? r`
+    return e.isRestored ? o`
                 <uui-tag look="primary" color="positive">
                     <uui-icon name="icon-refresh"></uui-icon>
                     Restored ${e.restoredDate ? this._formatDate(e.restoredDate) : ""}
                 </uui-tag>
-            ` : i === 0 ? r`
+            ` : i === 0 ? o`
                 <uui-tag look="primary" color="default">
                     <uui-icon name="icon-check"></uui-icon>
                     Latest
                 </uui-tag>
-            ` : r`
+            ` : o`
             <uui-tag look="secondary" color="default">
                 Original
             </uui-tag>
         `;
   }
+  /**
+   * Renders the comparison panel content
+   */
+  _renderComparison() {
+    if (!this._showComparison) return "";
+    const e = this._comparisonSnapshot, i = this._comparisonCurrent, a = e && i && this._isImage(e.name) && this._isImage(i.name);
+    return o`
+            <div class="preview-overlay" @click="${this._closeComparison}"></div>
+            <div class="comparison-panel">
+                <div class="preview-header">
+                    <h3>
+                        <uui-icon name="icon-split"></uui-icon>
+                        Compare Versions
+                    </h3>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        ${a ? o`
+                            <uui-button
+                                look="secondary"
+                                compact
+                                @click="${this._toggleComparisonMode}"
+                                title="Toggle comparison mode">
+                                <uui-icon name="${this._comparisonMode === "side-by-side" ? "icon-layers-alt" : "icon-split"}"></uui-icon>
+                                ${this._comparisonMode === "side-by-side" ? "Slider" : "Side-by-Side"}
+                            </uui-button>
+                        ` : ""}
+                        <uui-button
+                            look="secondary"
+                            compact
+                            @click="${this._closeComparison}">
+                            <uui-icon name="icon-delete"></uui-icon>
+                        </uui-button>
+                    </div>
+                </div>
+                <div class="comparison-content">
+                    ${this._comparisonLoading ? o`<div class="loader"><uui-loader></uui-loader> Loading current file...</div>` : i ? a ? this._renderImageComparison(i, e) : this._renderMetadataComparison(i, e) : o`<uui-box><p>Unable to load the current media file for comparison.</p></uui-box>`}
+                </div>
+            </div>
+        `;
+  }
+  /**
+   * Renders a side-by-side or slider image comparison
+   */
+  _renderImageComparison(e, i) {
+    return this._comparisonMode === "slider" ? o`
+                <div class="slider-comparison">
+                    <div class="slider-container">
+                        <img class="slider-img-under" src="${e.url}" alt="Current" />
+                        <div class="slider-img-over" style="width: ${this._sliderPosition}%;">
+                            <img src="${i.url}" alt="Snapshot" />
+                        </div>
+                        <div class="slider-handle" style="left: ${this._sliderPosition}%;">
+                            <div class="slider-handle-line"></div>
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            .value="${String(this._sliderPosition)}"
+                            @input="${this._onSliderInput}"
+                            class="slider-range"
+                        />
+                    </div>
+                    <div class="slider-labels">
+                        <span><uui-tag look="primary" color="default">Snapshot</uui-tag> ${i.name}</span>
+                        <span><uui-tag look="primary" color="positive">Current</uui-tag> ${e.name}</span>
+                    </div>
+                </div>
+                ${this._renderMetadataComparison(e, i)}
+            ` : o`
+            <div class="side-by-side">
+                <div class="compare-column">
+                    <div class="compare-label">
+                        <uui-tag look="primary" color="default">Snapshot</uui-tag>
+                        <span class="compare-filename">${i.name}</span>
+                    </div>
+                    <div class="compare-image-container">
+                        <img src="${i.url}" alt="${i.name}" />
+                    </div>
+                </div>
+                <div class="compare-divider"></div>
+                <div class="compare-column">
+                    <div class="compare-label">
+                        <uui-tag look="primary" color="positive">Current</uui-tag>
+                        <span class="compare-filename">${e.name}</span>
+                    </div>
+                    <div class="compare-image-container">
+                        <img src="${e.url}" alt="${e.name}" />
+                    </div>
+                </div>
+            </div>
+            ${this._renderMetadataComparison(e, i)}
+        `;
+  }
+  /**
+   * Renders a metadata diff table comparing the snapshot and current file
+   */
+  _renderMetadataComparison(e, i) {
+    const a = e.size - i.size, t = a > 0 ? `+${this._formatSize(a)}` : a < 0 ? `-${this._formatSize(Math.abs(a))}` : "No change";
+    return o`
+            <div class="metadata-comparison">
+                <h4>File Details</h4>
+                <uui-table>
+                    <uui-table-head>
+                        <uui-table-head-cell>Property</uui-table-head-cell>
+                        <uui-table-head-cell>Snapshot</uui-table-head-cell>
+                        <uui-table-head-cell>Current</uui-table-head-cell>
+                        <uui-table-head-cell>Difference</uui-table-head-cell>
+                    </uui-table-head>
+                    <uui-table-row>
+                        <uui-table-cell><strong>Filename</strong></uui-table-cell>
+                        <uui-table-cell>${i.name}</uui-table-cell>
+                        <uui-table-cell>${e.name}</uui-table-cell>
+                        <uui-table-cell>
+                            ${i.name === e.name ? o`<uui-tag look="secondary" color="default">Same</uui-tag>` : o`<uui-tag look="primary" color="warning">Changed</uui-tag>`}
+                        </uui-table-cell>
+                    </uui-table-row>
+                    <uui-table-row>
+                        <uui-table-cell><strong>File Size</strong></uui-table-cell>
+                        <uui-table-cell>${this._formatSize(i.size)}</uui-table-cell>
+                        <uui-table-cell>${this._formatSize(e.size)}</uui-table-cell>
+                        <uui-table-cell>
+                            <uui-tag look="secondary" color="${a === 0 ? "default" : a > 0 ? "warning" : "positive"}">
+                                ${t}
+                            </uui-tag>
+                        </uui-table-cell>
+                    </uui-table-row>
+                    <uui-table-row>
+                        <uui-table-cell><strong>Date</strong></uui-table-cell>
+                        <uui-table-cell>${this._formatDate(i.date)}</uui-table-cell>
+                        <uui-table-cell>${this._formatDate(e.lastModified)}</uui-table-cell>
+                        <uui-table-cell></uui-table-cell>
+                    </uui-table-row>
+                    ${i.uploader ? o`
+                        <uui-table-row>
+                            <uui-table-cell><strong>Uploaded By</strong></uui-table-cell>
+                            <uui-table-cell>${i.uploader.replace(/_/g, " ")}</uui-table-cell>
+                            <uui-table-cell>—</uui-table-cell>
+                            <uui-table-cell></uui-table-cell>
+                        </uui-table-row>
+                    ` : ""}
+                </uui-table>
+            </div>
+        `;
+  }
   render() {
     if (this._loading)
-      return r`<div class="loader"><uui-loader></uui-loader> Fetching snapshots...</div>`;
+      return o`<div class="loader"><uui-loader></uui-loader> Fetching snapshots...</div>`;
     if (this._versions.length === 0)
-      return r`
+      return o`
                 <uui-box>
                     <div style="display: flex; align-items: center; gap: var(--uui-size-space-3);">
                         <uui-icon name="info" style="color: var(--uui-color-primary);"></uui-icon>
@@ -218,7 +418,7 @@ let n = class extends g(d) {
                 </uui-box>
             `;
     const e = this._versions.length === 1, i = this._pagedVersions, a = (this._currentPage - 1) * this._pageSize;
-    return r`
+    return o`
             <div class="snapshot-container">
                 <uui-table>
                     <uui-table-head>
@@ -229,10 +429,10 @@ let n = class extends g(d) {
                         <uui-table-head-cell>Actions</uui-table-head-cell>
                     </uui-table-head>
 
-                    ${i.map((t, o) => r`
+                    ${i.map((t, r) => o`
                         <uui-table-row>
                             <uui-table-cell>
-                                ${this._isImage(t.name) ? r`
+                                ${this._isImage(t.name) ? o`
                                         <button 
                                             class="filename-link" 
                                             @click="${() => this._openImagePreview(t)}"
@@ -240,15 +440,23 @@ let n = class extends g(d) {
                                             <uui-icon name="icon-picture"></uui-icon>
                                             ${t.name}
                                         </button>
-                                    ` : r`<span>${t.name}</span>`}
+                                    ` : o`<span>${t.name}</span>`}
                             </uui-table-cell>
                             <uui-table-cell>${this._formatDate(t.date)}</uui-table-cell>
                             <uui-table-cell>${t.uploader.replace(/_/g, " ")}</uui-table-cell>
                             <uui-table-cell>
-                                ${this._renderStatus(t, a + o)}
+                                ${this._renderStatus(t, a + r)}
                             </uui-table-cell>
                             <uui-table-cell>
                                 <div style="display: flex; gap: 8px;">
+                                    <uui-button
+                                        look="secondary"
+                                        compact
+                                        ?disabled="${a + r === 0}"
+                                        title="${a + r === 0 ? "This is the latest version" : "Compare with current file"}"
+                                        @click="${() => this._openComparison(t)}">
+                                        <uui-icon name="icon-split"></uui-icon> Compare
+                                    </uui-button>
                                     <uui-button 
                                         look="secondary" 
                                         compact 
@@ -260,8 +468,8 @@ let n = class extends g(d) {
                                         look="primary" 
                                         color="positive"
                                         compact
-                                        ?disabled="${e || this._isRestoring || a + o === 0}"
-                                        title="${e ? "Cannot restore when only one version exists" : a + o === 0 ? "This is already the latest version" : "Restore this version"}"
+                                        ?disabled="${e || this._isRestoring || a + r === 0}"
+                                        title="${e ? "Cannot restore when only one version exists" : a + r === 0 ? "This is already the latest version" : "Restore this version"}"
                                         @click="${() => this._restoreVersion(t)}">
                                         <uui-icon name="icon-refresh"></uui-icon> ${this._isRestoring ? "Restoring..." : "Restore"}
                                     </uui-button>
@@ -271,7 +479,7 @@ let n = class extends g(d) {
                     `)}
                 </uui-table>
 
-                ${this._totalPages > 1 ? r`
+                ${this._totalPages > 1 ? o`
                     <div class="pagination-container">
                         <uui-pagination
                             .current="${this._currentPage}"
@@ -282,7 +490,7 @@ let n = class extends g(d) {
                 ` : ""}
 
                 <!-- Image Preview Side Panel -->
-                ${this._showPreview ? r`
+                ${this._showPreview ? o`
                     <div class="preview-overlay" @click="${this._closePreview}"></div>
                     <div class="preview-panel">
                         <div class="preview-header">
@@ -302,7 +510,7 @@ let n = class extends g(d) {
                                 <strong>Filename:</strong> <br/>${this._previewImageName}
                             </div>
                             <div class="preview-image-container">
-                                ${this._previewImageUrl ? r`
+                                ${this._previewImageUrl ? o`
                                         <img 
                                             src="${this._previewImageUrl}" 
                                             alt="${this._previewImageName}"
@@ -315,7 +523,7 @@ let n = class extends g(d) {
       });
     }}"
                                         />
-                                    ` : r`<uui-loader></uui-loader>`}
+                                    ` : o`<uui-loader></uui-loader>`}
                             </div>
                             <div class="preview-actions">
                                 <uui-button 
@@ -334,6 +542,9 @@ let n = class extends g(d) {
                         </div>
                     </div>
                 ` : ""}
+
+                <!-- Comparison Panel -->
+                ${this._renderComparison()}
             </div>
         `;
   }
@@ -347,7 +558,7 @@ let n = class extends g(d) {
     });
   }
 };
-n.styles = p`
+s.styles = p`
         :host {
             display: block;
             margin-bottom: 20px;
@@ -509,41 +720,242 @@ n.styles = p`
             flex: 1;
         }
 
+        /* Comparison Panel Styles */
+        .comparison-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 900px;
+            max-width: 95vw;
+            background: var(--uui-color-surface);
+            box-shadow: -2px 0 8px rgba(0, 0, 0, 0.2);
+            z-index: 1001;
+            display: flex;
+            flex-direction: column;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .comparison-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--uui-size-space-5);
+            display: flex;
+            flex-direction: column;
+            gap: var(--uui-size-space-5);
+        }
+
+        /* Side-by-side image layout */
+        .side-by-side {
+            display: flex;
+            gap: var(--uui-size-space-4);
+            align-items: flex-start;
+        }
+
+        .compare-column {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: var(--uui-size-space-3);
+        }
+
+        .compare-label {
+            display: flex;
+            align-items: center;
+            gap: var(--uui-size-space-2);
+        }
+
+        .compare-filename {
+            font-size: 0.85rem;
+            color: var(--uui-color-text-alt);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .compare-image-container {
+            background: var(--uui-color-surface-alt);
+            border-radius: var(--uui-border-radius);
+            padding: var(--uui-size-space-3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+            border: 1px solid var(--uui-color-border);
+        }
+
+        .compare-image-container img {
+            max-width: 100%;
+            max-height: 50vh;
+            object-fit: contain;
+            border-radius: var(--uui-border-radius);
+        }
+
+        .compare-divider {
+            width: 1px;
+            align-self: stretch;
+            background: var(--uui-color-border);
+        }
+
+        /* Slider comparison */
+        .slider-comparison {
+            display: flex;
+            flex-direction: column;
+            gap: var(--uui-size-space-3);
+        }
+
+        .slider-container {
+            position: relative;
+            overflow: hidden;
+            border-radius: var(--uui-border-radius);
+            border: 1px solid var(--uui-color-border);
+            background: var(--uui-color-surface-alt);
+        }
+
+        .slider-img-under {
+            display: block;
+            width: 100%;
+            max-height: 50vh;
+            object-fit: contain;
+        }
+
+        .slider-img-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            overflow: hidden;
+        }
+
+        .slider-img-over img {
+            display: block;
+            height: 100%;
+            max-height: 50vh;
+            object-fit: contain;
+        }
+
+        .slider-handle {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--uui-color-interactive);
+            transform: translateX(-50%);
+            pointer-events: none;
+        }
+
+        .slider-handle-line {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--uui-color-interactive);
+            border: 2px solid var(--uui-color-surface);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .slider-range {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: ew-resize;
+            margin: 0;
+        }
+
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+        }
+
+        .slider-labels span {
+            display: flex;
+            align-items: center;
+            gap: var(--uui-size-space-2);
+        }
+
+        /* Metadata diff table */
+        .metadata-comparison {
+            border-top: 1px solid var(--uui-color-border);
+            padding-top: var(--uui-size-space-4);
+        }
+
+        .metadata-comparison h4 {
+            margin: 0 0 var(--uui-size-space-3) 0;
+            font-size: 1rem;
+        }
+
         @media (max-width: 768px) {
             .preview-panel {
                 width: 100vw;
                 max-width: 100vw;
             }
+            .comparison-panel {
+                width: 100vw;
+                max-width: 100vw;
+            }
+            .side-by-side {
+                flex-direction: column;
+            }
+            .compare-divider {
+                width: 100%;
+                height: 1px;
+            }
         }
     `;
-s([
+n([
   l()
-], n.prototype, "_versions", 2);
-s([
+], s.prototype, "_versions", 2);
+n([
   l()
-], n.prototype, "_loading", 2);
-s([
+], s.prototype, "_loading", 2);
+n([
   l()
-], n.prototype, "_mediaKey", 2);
-s([
+], s.prototype, "_mediaKey", 2);
+n([
   l()
-], n.prototype, "_previewImageUrl", 2);
-s([
+], s.prototype, "_previewImageUrl", 2);
+n([
   l()
-], n.prototype, "_previewImageName", 2);
-s([
+], s.prototype, "_previewImageName", 2);
+n([
   l()
-], n.prototype, "_showPreview", 2);
-s([
+], s.prototype, "_showPreview", 2);
+n([
   l()
-], n.prototype, "_isRestoring", 2);
-s([
+], s.prototype, "_isRestoring", 2);
+n([
   l()
-], n.prototype, "_currentPage", 2);
-n = s([
+], s.prototype, "_currentPage", 2);
+n([
+  l()
+], s.prototype, "_showComparison", 2);
+n([
+  l()
+], s.prototype, "_comparisonSnapshot", 2);
+n([
+  l()
+], s.prototype, "_comparisonCurrent", 2);
+n([
+  l()
+], s.prototype, "_comparisonLoading", 2);
+n([
+  l()
+], s.prototype, "_comparisonMode", 2);
+n([
+  l()
+], s.prototype, "_sliderPosition", 2);
+s = n([
   h("snapshot-viewer")
-], n);
+], s);
 export {
-  n as SnapshotViewerElement
+  s as SnapshotViewerElement
 };
 //# sourceMappingURL=umbraco-media-snapshot.js.map
