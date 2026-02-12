@@ -1,26 +1,26 @@
 import { LitElement as m, html as s, css as g, state as u, customElement as v } from "@umbraco-cms/backoffice/external/lit";
-import { UmbElementMixin as b } from "@umbraco-cms/backoffice/element-api";
-import { UMB_WORKSPACE_CONTEXT as f } from "@umbraco-cms/backoffice/workspace";
+import { UmbElementMixin as f } from "@umbraco-cms/backoffice/element-api";
+import { UMB_WORKSPACE_CONTEXT as b } from "@umbraco-cms/backoffice/workspace";
 import { UMB_AUTH_CONTEXT as _ } from "@umbraco-cms/backoffice/auth";
-import { UMB_NOTIFICATION_CONTEXT as x } from "@umbraco-cms/backoffice/notification";
+import { UMB_NOTIFICATION_CONTEXT as w } from "@umbraco-cms/backoffice/notification";
 import { UMB_MODAL_MANAGER_CONTEXT as y, UMB_CONFIRM_MODAL as p } from "@umbraco-cms/backoffice/modal";
-var w = Object.defineProperty, k = Object.getOwnPropertyDescriptor, r = (e, t, i, o) => {
-  for (var a = o > 1 ? void 0 : o ? k(t, i) : t, l = e.length - 1, c; l >= 0; l--)
-    (c = e[l]) && (a = (o ? c(t, i, a) : c(a)) || a);
-  return o && a && w(t, i, a), a;
+var x = Object.defineProperty, k = Object.getOwnPropertyDescriptor, n = (e, i, t, o) => {
+  for (var a = o > 1 ? void 0 : o ? k(i, t) : i, l = e.length - 1, c; l >= 0; l--)
+    (c = e[l]) && (a = (o ? c(i, t, a) : c(a)) || a);
+  return o && a && x(i, t, a), a;
 };
-let n = class extends b(m) {
+let r = class extends f(m) {
   constructor() {
     super(), this._versions = [], this._loading = !0, this._mediaKey = "", this._previewImageUrl = null, this._previewImageName = "", this._showPreview = !1, this._isRestoring = !1, this._currentPage = 1, this._showComparison = !1, this._comparisonSnapshot = null, this._comparisonCurrent = null, this._comparisonLoading = !1, this._comparisonMode = "side-by-side", this._sliderPosition = 50, this._selectedSnapshots = /* @__PURE__ */ new Set(), this._isDeleting = !1, this._editingNoteName = null, this._editingNoteValue = "", this._savingNote = !1, this._pageSize = 10, this.consumeContext(_, (e) => {
       this._authContext = e;
-    }), this.consumeContext(x, (e) => {
+    }), this.consumeContext(w, (e) => {
       this._notificationContext = e;
     }), this.consumeContext(y, (e) => {
       this._modalManagerContext = e;
-    }), this.consumeContext(f, (e) => {
-      const t = e;
-      t.unique && this.observe(t.unique, (i) => {
-        i && i !== this._mediaKey && (this._mediaKey = i.toString(), this._currentPage = 1, this._fetchVersions(this._mediaKey));
+    }), this.consumeContext(b, (e) => {
+      const i = e;
+      i.unique && this.observe(i.unique, (t) => {
+        t && t !== this._mediaKey && (this._mediaKey = t.toString(), this._currentPage = 1, this._fetchVersions(this._mediaKey));
       });
     });
   }
@@ -31,26 +31,26 @@ let n = class extends b(m) {
    */
   async _fetchVersions(e) {
     this._loading = !0;
-    const t = await this._authContext?.getLatestToken();
-    if (!t) {
+    const i = await this._authContext?.getLatestToken();
+    if (!i) {
       console.error("No authentication token available."), this._notificationContext?.peek("danger", {
         data: { headline: "Authentication Error", message: "No authentication token available." }
       }), this._loading = !1;
       return;
     }
     try {
-      const i = `/umbraco/management/api/v1/snapshot/versions/${e}`, o = await fetch(i, {
+      const t = `/umbraco/management/api/v1/snapshot/versions/${e}`, o = await fetch(t, {
         method: "GET",
         headers: {
-          Authorization: `Bearer ${t}`,
+          Authorization: `Bearer ${i}`,
           "Content-Type": "application/json"
         }
       });
       o.ok ? (this._versions = await o.json(), this._selectedSnapshots = /* @__PURE__ */ new Set()) : o.status === 401 && (console.error("Unauthorized: The session may have expired."), this._notificationContext?.peek("danger", {
         data: { headline: "Unauthorized", message: "The session may have expired." }
       }));
-    } catch (i) {
-      console.error("Failed to fetch snapshots:", i), this._notificationContext?.peek("danger", {
+    } catch (t) {
+      console.error("Failed to fetch snapshots:", t), this._notificationContext?.peek("danger", {
         data: { headline: "Error", message: "Failed to fetch snapshots." }
       });
     } finally {
@@ -64,17 +64,17 @@ let n = class extends b(m) {
     const e = await this._authContext?.getLatestToken();
     if (!e) return null;
     try {
-      const t = `/umbraco/management/api/v1/snapshot/current/${this._mediaKey}`, i = await fetch(t, {
+      const i = `/umbraco/management/api/v1/snapshot/current/${this._mediaKey}`, t = await fetch(i, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${e}`,
           "Content-Type": "application/json"
         }
       });
-      if (i.ok)
-        return await i.json();
-    } catch (t) {
-      console.error("Failed to fetch current media:", t);
+      if (t.ok)
+        return await t.json();
+    } catch (i) {
+      console.error("Failed to fetch current media:", i);
     }
     return null;
   }
@@ -83,8 +83,8 @@ let n = class extends b(m) {
    */
   async _openComparison(e) {
     this._comparisonLoading = !0, this._comparisonSnapshot = e, this._showComparison = !0, this._sliderPosition = 50;
-    const t = await this._fetchCurrentMedia();
-    this._comparisonCurrent = t, this._comparisonLoading = !1;
+    const i = await this._fetchCurrentMedia();
+    this._comparisonCurrent = i, this._comparisonLoading = !1;
   }
   /**
    * Closes the comparison panel
@@ -102,8 +102,8 @@ let n = class extends b(m) {
    * Handles the slider input for overlay comparison
    */
   _onSliderInput(e) {
-    const t = e.target;
-    this._sliderPosition = parseInt(t.value, 10);
+    const i = e.target;
+    this._sliderPosition = parseInt(i.value, 10);
   }
   /**
    * Returns the total number of pages based on versions count and page size
@@ -122,49 +122,173 @@ let n = class extends b(m) {
    * Handles page change from the pagination component
    */
   _onPageChange(e) {
-    const t = e.target;
-    this._currentPage = t.current;
+    const i = e.target;
+    this._currentPage = i.current;
   }
   /**
-   * Checks if a filename is an image based on extension
+   * Determines the previewable file type from a filename
+   */
+  _getFileType(e) {
+    const i = e.substring(e.lastIndexOf(".")).toLowerCase();
+    return [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"].includes(i) ? "image" : i === ".svg" ? "svg" : i === ".pdf" ? "pdf" : [".mp4", ".webm", ".ogg", ".mov"].includes(i) ? "video" : [".mp3", ".wav", ".ogg", ".aac", ".flac", ".m4a"].includes(i) ? "audio" : null;
+  }
+  /**
+   * Checks if a filename is an image (including SVG) for comparison support
    */
   _isImage(e) {
-    const t = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg"], i = e.substring(e.lastIndexOf(".")).toLowerCase();
-    return t.includes(i);
+    const i = this._getFileType(e);
+    return i === "image" || i === "svg";
   }
   /**
-   * Opens the image preview panel
+   * Whether a file can be previewed in the side panel
    */
-  _openImagePreview(e) {
-    this._isImage(e.name) && (this._previewImageUrl = e.url, this._previewImageName = e.name, this._showPreview = !0);
+  _isPreviewable(e) {
+    return this._getFileType(e) !== null;
   }
   /**
-   * Closes the image preview panel
+   * Returns the appropriate icon name for a file type
+   */
+  _getFileIcon(e) {
+    switch (this._getFileType(e)) {
+      case "image":
+      case "svg":
+        return "icon-picture";
+      case "video":
+        return "icon-video";
+      case "audio":
+        return "icon-sound-waves";
+      case "pdf":
+        return "icon-document";
+      default:
+        return "icon-document";
+    }
+  }
+  /**
+   * Opens the preview panel for any supported file type
+   */
+  _openPreview(e) {
+    this._isPreviewable(e.name) && (this._previewImageUrl = e.url, this._previewImageName = e.name, this._showPreview = !0);
+  }
+  /**
+   * Closes the preview panel
    */
   _closePreview() {
     this._showPreview = !1, this._previewImageUrl = null, this._previewImageName = "";
+  }
+  /**
+   * Returns the panel header title based on the current preview file type
+   */
+  _getPreviewTitle() {
+    switch (this._getFileType(this._previewImageName)) {
+      case "image":
+      case "svg":
+        return "Image Preview";
+      case "video":
+        return "Video Preview";
+      case "audio":
+        return "Audio Preview";
+      case "pdf":
+        return "PDF Preview";
+      default:
+        return "File Preview";
+    }
+  }
+  /**
+   * Renders the appropriate preview element based on file type
+   */
+  _renderPreviewContent() {
+    if (!this._previewImageUrl)
+      return s`<uui-loader></uui-loader>`;
+    switch (this._getFileType(this._previewImageName)) {
+      case "image":
+      case "svg":
+        return s`
+                    <img
+                        src="${this._previewImageUrl}"
+                        alt="${this._previewImageName}"
+                        @error="${() => {
+          this._notificationContext?.peek("warning", {
+            data: { headline: "Preview Error", message: "Unable to load image preview" }
+          });
+        }}"
+                    />
+                `;
+      case "video":
+        return s`
+                    <video
+                        controls
+                        preload="metadata"
+                        class="preview-video"
+                        @error="${() => {
+          this._notificationContext?.peek("warning", {
+            data: { headline: "Preview Error", message: "Unable to load video preview" }
+          });
+        }}">
+                        <source src="${this._previewImageUrl}" />
+                        Your browser does not support video playback.
+                    </video>
+                `;
+      case "audio":
+        return s`
+                    <div class="preview-audio-wrapper">
+                        <uui-icon name="icon-sound-waves" class="preview-audio-icon"></uui-icon>
+                        <audio
+                            controls
+                            preload="metadata"
+                            class="preview-audio"
+                            @error="${() => {
+          this._notificationContext?.peek("warning", {
+            data: { headline: "Preview Error", message: "Unable to load audio preview" }
+          });
+        }}">
+                            <source src="${this._previewImageUrl}" />
+                            Your browser does not support audio playback.
+                        </audio>
+                    </div>
+                `;
+      case "pdf":
+        return s`
+                    <iframe
+                        src="${this._previewImageUrl}"
+                        class="preview-pdf"
+                        title="PDF Preview: ${this._previewImageName}"
+                        @error="${() => {
+          this._notificationContext?.peek("warning", {
+            data: { headline: "Preview Error", message: "Unable to load PDF preview" }
+          });
+        }}">
+                    </iframe>
+                `;
+      default:
+        return s`
+                    <div class="preview-unsupported">
+                        <uui-icon name="icon-document"></uui-icon>
+                        <p>Preview not available for this file type.</p>
+                    </div>
+                `;
+    }
   }
   // --- Selection helpers ---
   /**
    * Toggles a single snapshot's selection state
    */
   _toggleSelection(e) {
-    const t = new Set(this._selectedSnapshots);
-    t.has(e) ? t.delete(e) : t.add(e), this._selectedSnapshots = t;
+    const i = new Set(this._selectedSnapshots);
+    i.has(e) ? i.delete(e) : i.add(e), this._selectedSnapshots = i;
   }
   /**
    * Toggles select-all for the current page (excluding the latest version at index 0)
    */
   _toggleSelectAll() {
-    const e = (this._currentPage - 1) * this._pageSize, t = this._pagedVersions.filter((a, l) => e + l !== 0).map((a) => a.name), i = t.every((a) => this._selectedSnapshots.has(a)), o = new Set(this._selectedSnapshots);
-    i ? t.forEach((a) => o.delete(a)) : t.forEach((a) => o.add(a)), this._selectedSnapshots = o;
+    const e = (this._currentPage - 1) * this._pageSize, i = this._pagedVersions.filter((a, l) => e + l !== 0).map((a) => a.name), t = i.every((a) => this._selectedSnapshots.has(a)), o = new Set(this._selectedSnapshots);
+    t ? i.forEach((a) => o.delete(a)) : i.forEach((a) => o.add(a)), this._selectedSnapshots = o;
   }
   /**
    * Whether all selectable items on the current page are selected
    */
   get _allPageSelected() {
-    const e = (this._currentPage - 1) * this._pageSize, t = this._pagedVersions.filter((i, o) => e + o !== 0);
-    return t.length > 0 && t.every((i) => this._selectedSnapshots.has(i.name));
+    const e = (this._currentPage - 1) * this._pageSize, i = this._pagedVersions.filter((t, o) => e + o !== 0);
+    return i.length > 0 && i.every((t) => this._selectedSnapshots.has(t.name));
   }
   /**
    * Clears all selections
@@ -182,7 +306,7 @@ let n = class extends b(m) {
       console.error("Modal manager context not available");
       return;
     }
-    const t = this._modalManagerContext.open(this, p, {
+    const i = this._modalManagerContext.open(this, p, {
       data: {
         headline: "Delete Snapshot",
         content: s`
@@ -199,13 +323,13 @@ let n = class extends b(m) {
       }
     });
     try {
-      await t.onSubmit();
+      await i.onSubmit();
     } catch {
       return;
     }
     this._isDeleting = !0;
-    const i = await this._authContext?.getLatestToken();
-    if (!i) {
+    const t = await this._authContext?.getLatestToken();
+    if (!t) {
       this._notificationContext?.peek("danger", {
         data: { headline: "Authentication Error", message: "No authentication token available." }
       }), this._isDeleting = !1;
@@ -215,7 +339,7 @@ let n = class extends b(m) {
       const o = await fetch("/umbraco/management/api/v1/snapshot/delete", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${i}`,
+          Authorization: `Bearer ${t}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
@@ -255,7 +379,7 @@ let n = class extends b(m) {
       console.error("Modal manager context not available");
       return;
     }
-    const e = this._selectedSnapshots.size, t = this._modalManagerContext.open(this, p, {
+    const e = this._selectedSnapshots.size, i = this._modalManagerContext.open(this, p, {
       data: {
         headline: "Delete Selected Snapshots",
         content: s`
@@ -272,13 +396,13 @@ let n = class extends b(m) {
       }
     });
     try {
-      await t.onSubmit();
+      await i.onSubmit();
     } catch {
       return;
     }
     this._isDeleting = !0;
-    const i = await this._authContext?.getLatestToken();
-    if (!i) {
+    const t = await this._authContext?.getLatestToken();
+    if (!t) {
       this._notificationContext?.peek("danger", {
         data: { headline: "Authentication Error", message: "No authentication token available." }
       }), this._isDeleting = !1;
@@ -288,7 +412,7 @@ let n = class extends b(m) {
       const o = await fetch("/umbraco/management/api/v1/snapshot/delete-bulk", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${i}`,
+          Authorization: `Bearer ${t}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
@@ -331,31 +455,31 @@ let n = class extends b(m) {
       console.error("Modal manager context not available");
       return;
     }
-    const t = this._modalManagerContext.open(this, p, {
+    const i = this._modalManagerContext.open(this, p, {
       data: {
         headline: "Restore File Version",
         content: s`
-                    <p>Are you sure you want to restore <strong>"${e.name}"</strong>?</p>
-                    <p>This will replace the current file and create a new snapshot.</p>
-                    <uui-box>
-                        <p style="margin: 0;">
-                            <uui-icon name="icon-alert"></uui-icon>
-                            <strong>Warning:</strong> This action cannot be undone.
-                        </p>
-                    </uui-box>
-                `,
+                        <p>Are you sure you want to restore <strong>"${e.name}"</strong>?</p>
+                        <p>This will replace the current file and create a new snapshot.</p>
+                        <uui-box>
+                            <p style="margin: 0;">
+                                <uui-icon name="icon-alert"></uui-icon>
+                                <strong>Warning:</strong> This action cannot be undone.
+                            </p>
+                        </uui-box>
+                    `,
         color: "danger",
         confirmLabel: "Restore"
       }
     });
     try {
-      await t.onSubmit();
+      await i.onSubmit();
     } catch {
       return;
     }
     this._isRestoring = !0;
-    const i = await this._authContext?.getLatestToken();
-    if (!i) {
+    const t = await this._authContext?.getLatestToken();
+    if (!t) {
       this._notificationContext?.peek("danger", {
         data: { headline: "Authentication Error", message: "No authentication token available." }
       }), this._isRestoring = !1;
@@ -365,7 +489,7 @@ let n = class extends b(m) {
       const a = await fetch("/umbraco/management/api/v1/snapshot/restore", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${i}`,
+          Authorization: `Bearer ${t}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
@@ -413,21 +537,21 @@ let n = class extends b(m) {
    */
   _formatSize(e) {
     if (e === 0) return "0 B";
-    const t = ["B", "KB", "MB", "GB"], i = Math.floor(Math.log(e) / Math.log(1024));
-    return (e / Math.pow(1024, i)).toFixed(1) + " " + t[i];
+    const i = ["B", "KB", "MB", "GB"], t = Math.floor(Math.log(e) / Math.log(1024));
+    return (e / Math.pow(1024, t)).toFixed(1) + " " + i[t];
   }
   /**
    * Renders a compact inline status badge for a snapshot version
    */
-  _renderStatus(e, t) {
-    return e.isRestored ? s`<uui-tag class="status-badge" look="primary" color="positive">Restored</uui-tag>` : t === 0 ? s`<uui-tag class="status-badge" look="primary" color="default">Latest</uui-tag>` : s``;
+  _renderStatus(e, i) {
+    return e.isRestored ? s`<uui-tag class="status-badge" look="primary" color="positive">Restored</uui-tag>` : i === 0 ? s`<uui-tag class="status-badge" look="primary" color="default">Latest</uui-tag>` : s``;
   }
   /**
    * Renders the comparison panel content
    */
   _renderComparison() {
     if (!this._showComparison) return "";
-    const e = this._comparisonSnapshot, t = this._comparisonCurrent, i = e && t && this._isImage(e.name) && this._isImage(t.name);
+    const e = this._comparisonSnapshot, i = this._comparisonCurrent, t = e && i && this._isImage(e.name) && this._isImage(i.name);
     return s`
             <div class="preview-overlay" @click="${this._closeComparison}"></div>
             <div class="comparison-panel">
@@ -437,7 +561,7 @@ let n = class extends b(m) {
                         Compare Versions
                     </h3>
                     <div style="display: flex; gap: 8px; align-items: center;">
-                        ${i ? s`
+                        ${t ? s`
                             <uui-button
                                 look="secondary"
                                 compact
@@ -456,7 +580,7 @@ let n = class extends b(m) {
                     </div>
                 </div>
                 <div class="comparison-content">
-                    ${this._comparisonLoading ? s`<div class="loader"><uui-loader></uui-loader> Loading current file...</div>` : t ? i ? this._renderImageComparison(t, e) : this._renderMetadataComparison(t, e) : s`<uui-box><p>Unable to load the current media file for comparison.</p></uui-box>`}
+                    ${this._comparisonLoading ? s`<div class="loader"><uui-loader></uui-loader> Loading current file...</div>` : i ? t ? this._renderImageComparison(i, e) : this._renderMetadataComparison(i, e) : s`<uui-box><p>Unable to load the current media file for comparison.</p></uui-box>`}
                 </div>
             </div>
         `;
@@ -464,13 +588,13 @@ let n = class extends b(m) {
   /**
    * Renders a side-by-side or slider image comparison
    */
-  _renderImageComparison(e, t) {
+  _renderImageComparison(e, i) {
     return this._comparisonMode === "slider" ? s`
                 <div class="slider-comparison">
                     <div class="slider-container">
                         <img class="slider-img-under" src="${e.url}" alt="Current" />
                         <div class="slider-img-over" style="width: ${this._sliderPosition}%;">
-                            <img src="${t.url}" alt="Snapshot" />
+                            <img src="${i.url}" alt="Snapshot" />
                         </div>
                         <div class="slider-handle" style="left: ${this._sliderPosition}%;">
                             <div class="slider-handle-line"></div>
@@ -485,20 +609,20 @@ let n = class extends b(m) {
                         />
                     </div>
                     <div class="slider-labels">
-                        <span><uui-tag look="primary" color="default">Snapshot</uui-tag> ${t.name}</span>
+                        <span><uui-tag look="primary" color="default">Snapshot</uui-tag> ${i.name}</span>
                         <span><uui-tag look="primary" color="positive">Current</uui-tag> ${e.name}</span>
                     </div>
                 </div>
-                ${this._renderMetadataComparison(e, t)}
+                ${this._renderMetadataComparison(e, i)}
             ` : s`
             <div class="side-by-side">
                 <div class="compare-column">
                     <div class="compare-label">
                         <uui-tag look="primary" color="default">Snapshot</uui-tag>
-                        <span class="compare-filename">${t.name}</span>
+                        <span class="compare-filename">${i.name}</span>
                     </div>
                     <div class="compare-image-container">
-                        <img src="${t.url}" alt="${t.name}" />
+                        <img src="${i.url}" alt="${i.name}" />
                     </div>
                 </div>
                 <div class="compare-divider"></div>
@@ -512,14 +636,14 @@ let n = class extends b(m) {
                     </div>
                 </div>
             </div>
-            ${this._renderMetadataComparison(e, t)}
+            ${this._renderMetadataComparison(e, i)}
         `;
   }
   /**
    * Renders a metadata diff table comparing the snapshot and current file
    */
-  _renderMetadataComparison(e, t) {
-    const i = e.size - t.size, o = i > 0 ? `+${this._formatSize(i)}` : i < 0 ? `-${this._formatSize(Math.abs(i))}` : "No change";
+  _renderMetadataComparison(e, i) {
+    const t = e.size - i.size, o = t > 0 ? `+${this._formatSize(t)}` : t < 0 ? `-${this._formatSize(Math.abs(t))}` : "No change";
     return s`
             <div class="metadata-comparison">
                 <h4>File Details</h4>
@@ -532,32 +656,32 @@ let n = class extends b(m) {
                     </uui-table-head>
                     <uui-table-row>
                         <uui-table-cell><strong>Filename</strong></uui-table-cell>
-                        <uui-table-cell>${t.name}</uui-table-cell>
+                        <uui-table-cell>${i.name}</uui-table-cell>
                         <uui-table-cell>${e.name}</uui-table-cell>
                         <uui-table-cell>
-                            ${t.name === e.name ? s`<uui-tag look="secondary" color="default">Same</uui-tag>` : s`<uui-tag look="primary" color="warning">Changed</uui-tag>`}
+                            ${i.name === e.name ? s`<uui-tag look="secondary" color="default">Same</uui-tag>` : s`<uui-tag look="primary" color="warning">Changed</uui-tag>`}
                         </uui-table-cell>
                     </uui-table-row>
                     <uui-table-row>
                         <uui-table-cell><strong>File Size</strong></uui-table-cell>
-                        <uui-table-cell>${this._formatSize(t.size)}</uui-table-cell>
+                        <uui-table-cell>${this._formatSize(i.size)}</uui-table-cell>
                         <uui-table-cell>${this._formatSize(e.size)}</uui-table-cell>
                         <uui-table-cell>
-                            <uui-tag look="secondary" color="${i === 0 ? "default" : i > 0 ? "warning" : "positive"}">
+                            <uui-tag look="secondary" color="${t === 0 ? "default" : t > 0 ? "warning" : "positive"}">
                                 ${o}
                             </uui-tag>
                         </uui-table-cell>
                     </uui-table-row>
                     <uui-table-row>
                         <uui-table-cell><strong>Date</strong></uui-table-cell>
-                        <uui-table-cell>${this._formatDate(t.date)}</uui-table-cell>
+                        <uui-table-cell>${this._formatDate(i.date)}</uui-table-cell>
                         <uui-table-cell>${this._formatDate(e.lastModified)}</uui-table-cell>
                         <uui-table-cell></uui-table-cell>
                     </uui-table-row>
-                    ${t.uploader ? s`
+                    ${i.uploader ? s`
                         <uui-table-row>
                             <uui-table-cell><strong>Uploaded By</strong></uui-table-cell>
-                            <uui-table-cell>${t.uploader.replace(/_/g, " ")}</uui-table-cell>
+                            <uui-table-cell>${i.uploader.replace(/_/g, " ")}</uui-table-cell>
                             <uui-table-cell>—</uui-table-cell>
                             <uui-table-cell></uui-table-cell>
                         </uui-table-row>
@@ -571,7 +695,7 @@ let n = class extends b(m) {
    */
   _renderStats() {
     if (this._versions.length === 0) return "";
-    const e = this._versions.reduce((l, c) => l + (c.size || 0), 0), t = this._versions.map((l) => new Date(l.date).getTime()).filter((l) => !isNaN(l)), i = t.length > 0 ? new Date(Math.min(...t)) : null, o = t.length > 0 ? new Date(Math.max(...t)) : null, a = new Set(this._versions.map((l) => l.uploader).filter(Boolean));
+    const e = this._versions.reduce((l, c) => l + (c.size || 0), 0), i = this._versions.map((l) => new Date(l.date).getTime()).filter((l) => !isNaN(l)), t = i.length > 0 ? new Date(Math.min(...i)) : null, o = i.length > 0 ? new Date(Math.max(...i)) : null, a = new Set(this._versions.map((l) => l.uploader).filter(Boolean));
     return s`
             <div class="stats-strip">
                 <div class="stats-strip-item">
@@ -588,7 +712,7 @@ let n = class extends b(m) {
                 <div class="stats-strip-divider"></div>
                 <div class="stats-strip-item">
                     <uui-icon name="icon-calendar"></uui-icon>
-                    <span class="stats-strip-value">${i ? this._formatDate(i.toISOString()) : "—"}</span>
+                    <span class="stats-strip-value">${t ? this._formatDate(t.toISOString()) : "—"}</span>
                     <span class="stats-strip-label">Oldest</span>
                 </div>
                 <div class="stats-strip-divider"></div>
@@ -618,7 +742,7 @@ let n = class extends b(m) {
                     </div>
                 </uui-box>
             `;
-    const e = this._versions.length === 1, t = this._pagedVersions, i = (this._currentPage - 1) * this._pageSize, o = this._selectedSnapshots.size > 0;
+    const e = this._versions.length === 1, i = this._pagedVersions, t = (this._currentPage - 1) * this._pageSize, o = this._selectedSnapshots.size > 0;
     return s`
             <div class="snapshot-container">
 
@@ -668,8 +792,8 @@ let n = class extends b(m) {
                         <uui-table-head-cell style="text-align: right;">Actions</uui-table-head-cell>
                     </uui-table-head>
 
-                    ${t.map((a, l) => {
-      const c = i + l, d = c === 0, h = this._selectedSnapshots.has(a.name);
+                    ${i.map((a, l) => {
+      const c = t + l, d = c === 0, h = this._selectedSnapshots.has(a.name);
       return s`
                             <uui-table-row class="${h ? "row-selected" : ""}">
                                 <uui-table-cell style="width: 40px;">
@@ -687,15 +811,15 @@ let n = class extends b(m) {
                                 <uui-table-cell>
                                     <div class="version-cell">
                                         <div class="version-cell-primary">
-                                            ${this._isImage(a.name) ? s`
+                                            ${this._isPreviewable(a.name) ? s`
                                                     <button
                                                         class="filename-link"
-                                                        @click="${() => this._openImagePreview(a)}"
-                                                        title="Click to preview image">
-                                                        <uui-icon name="icon-picture"></uui-icon>
+                                                        @click="${() => this._openPreview(a)}"
+                                                        title="Click to preview">
+                                                        <uui-icon name="${this._getFileIcon(a.name)}"></uui-icon>
                                                         ${a.name}
                                                     </button>
-                                                ` : s`<span class="filename-text">${a.name}</span>`}
+                                                ` : s`<span class="filename-text"><uui-icon name="icon-document"></uui-icon> ${a.name}</span>`}
                                             ${this._renderStatus(a, c)}
                                         </div>
                                         <div class="version-cell-secondary">
@@ -766,14 +890,14 @@ let n = class extends b(m) {
                     </div>
                 ` : ""}
 
-                <!-- Image Preview Side Panel -->
+                <!-- File Preview Side Panel -->
                 ${this._showPreview ? s`
                     <div class="preview-overlay" @click="${this._closePreview}"></div>
                     <div class="preview-panel">
                         <div class="preview-header">
                             <h3>
-                                <uui-icon name="icon-picture"></uui-icon>
-                                Image Preview
+                                <uui-icon name="${this._getFileIcon(this._previewImageName)}"></uui-icon>
+                                ${this._getPreviewTitle()}
                             </h3>
                             <uui-button 
                                 look="secondary" 
@@ -786,21 +910,8 @@ let n = class extends b(m) {
                             <div class="preview-filename">
                                 <strong>Filename:</strong> <br/>${this._previewImageName}
                             </div>
-                            <div class="preview-image-container">
-                                ${this._previewImageUrl ? s`
-                                        <img 
-                                            src="${this._previewImageUrl}" 
-                                            alt="${this._previewImageName}"
-                                            @error="${() => {
-      this._notificationContext?.peek("warning", {
-        data: {
-          headline: "Preview Error",
-          message: "Unable to load image preview"
-        }
-      });
-    }}"
-                                        />
-                                    ` : s`<uui-loader></uui-loader>`}
+                            <div class="preview-media-container">
+                                ${this._renderPreviewContent()}
                             </div>
                             <div class="preview-actions">
                                 <uui-button 
@@ -853,18 +964,18 @@ let n = class extends b(m) {
   async _saveNote(e) {
     if (this._savingNote) return;
     this._savingNote = !0;
-    const t = await this._authContext?.getLatestToken();
-    if (!t) {
+    const i = await this._authContext?.getLatestToken();
+    if (!i) {
       this._notificationContext?.peek("danger", {
         data: { headline: "Authentication Error", message: "No authentication token available." }
       }), this._savingNote = !1;
       return;
     }
     try {
-      const i = await fetch("/umbraco/management/api/v1/snapshot/update-note", {
+      const t = await fetch("/umbraco/management/api/v1/snapshot/update-note", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${t}`,
+          Authorization: `Bearer ${i}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
@@ -873,16 +984,16 @@ let n = class extends b(m) {
           note: this._editingNoteValue
         })
       });
-      if (i.ok)
+      if (t.ok)
         e.note = this._editingNoteValue.trim() || null, this._editingNoteName = null, this._editingNoteValue = "", this.requestUpdate();
       else {
-        const o = await i.json();
+        const o = await t.json();
         this._notificationContext?.peek("danger", {
           data: { headline: "Save Failed", message: o.detail || "Failed to save note" }
         });
       }
-    } catch (i) {
-      console.error("Failed to save note:", i), this._notificationContext?.peek("danger", {
+    } catch (t) {
+      console.error("Failed to save note:", t), this._notificationContext?.peek("danger", {
         data: { headline: "Error", message: "An error occurred while saving the note." }
       });
     } finally {
@@ -892,8 +1003,8 @@ let n = class extends b(m) {
   /**
    * Handles keydown in the note input — Enter saves, Escape cancels
    */
-  _onNoteKeydown(e, t) {
-    e.key === "Enter" ? (e.preventDefault(), this._saveNote(t)) : e.key === "Escape" && this._cancelEditNote();
+  _onNoteKeydown(e, i) {
+    e.key === "Enter" ? (e.preventDefault(), this._saveNote(i)) : e.key === "Escape" && this._cancelEditNote();
   }
   /**
    * Renders the note cell for a snapshot row
@@ -907,8 +1018,8 @@ let n = class extends b(m) {
                         maxlength="500"
                         placeholder="Add a note…"
                         .value="${this._editingNoteValue}"
-                        @input="${(i) => this._editingNoteValue = i.target.value}"
-                        @keydown="${(i) => this._onNoteKeydown(i, e)}"
+                        @input="${(t) => this._editingNoteValue = t.target.value}"
+                        @keydown="${(t) => this._onNoteKeydown(t, e)}"
                     />
                     <div class="note-edit-actions">
                         <uui-button
@@ -938,7 +1049,7 @@ let n = class extends b(m) {
         `;
   }
 };
-n.styles = g`
+r.styles = g`
         :host {
             display: block;
             margin-bottom: 20px;
@@ -1114,7 +1225,8 @@ n.styles = g`
             word-break: break-all;
         }
 
-        .preview-image-container {
+        /* Preview media container — shared wrapper for all file types */
+        .preview-media-container {
             flex: 1;
             display: flex;
             align-items: center;
@@ -1122,10 +1234,11 @@ n.styles = g`
             background: var(--uui-color-surface-alt);
             border-radius: var(--uui-border-radius);
             padding: var(--uui-size-space-4);
-            min-height: 300px;
+            min-height: 200px;
+            overflow: hidden;
         }
 
-        .preview-image-container img {
+        .preview-media-container img {
             max-width: 100%;
             max-height: 60vh;
             object-fit: contain;
@@ -1133,15 +1246,56 @@ n.styles = g`
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
-        .preview-actions {
-            display: flex;
-            gap: var(--uui-size-space-3);
-            padding-top: var(--uui-size-space-4);
-            border-top: 1px solid var(--uui-color-border);
+        /* Video preview */
+        .preview-video {
+            max-width: 100%;
+            max-height: 60vh;
+            border-radius: var(--uui-border-radius);
+            background: #000;
         }
 
-        .preview-actions uui-button {
-            flex: 1;
+        /* Audio preview */
+        .preview-audio-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--uui-size-space-5);
+            padding: var(--uui-size-space-6);
+            width: 100%;
+        }
+
+        .preview-audio-icon {
+            font-size: 4rem;
+            color: var(--uui-color-primary);
+            opacity: 0.6;
+        }
+
+        .preview-audio {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        /* PDF preview */
+        .preview-pdf {
+            width: 100%;
+            height: 60vh;
+            border: none;
+            border-radius: var(--uui-border-radius);
+        }
+
+        /* Unsupported file type */
+        .preview-unsupported {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--uui-size-space-3);
+            padding: var(--uui-size-space-6);
+            color: var(--uui-color-text-alt);
+        }
+
+        .preview-unsupported uui-icon {
+            font-size: 3rem;
+            opacity: 0.4;
         }
 
         /* Comparison Panel Styles */
@@ -1517,67 +1671,67 @@ n.styles = g`
             }
         }
     `;
-r([
+n([
   u()
-], n.prototype, "_versions", 2);
-r([
+], r.prototype, "_versions", 2);
+n([
   u()
-], n.prototype, "_loading", 2);
-r([
+], r.prototype, "_loading", 2);
+n([
   u()
-], n.prototype, "_mediaKey", 2);
-r([
+], r.prototype, "_mediaKey", 2);
+n([
   u()
-], n.prototype, "_previewImageUrl", 2);
-r([
+], r.prototype, "_previewImageUrl", 2);
+n([
   u()
-], n.prototype, "_previewImageName", 2);
-r([
+], r.prototype, "_previewImageName", 2);
+n([
   u()
-], n.prototype, "_showPreview", 2);
-r([
+], r.prototype, "_showPreview", 2);
+n([
   u()
-], n.prototype, "_isRestoring", 2);
-r([
+], r.prototype, "_isRestoring", 2);
+n([
   u()
-], n.prototype, "_currentPage", 2);
-r([
+], r.prototype, "_currentPage", 2);
+n([
   u()
-], n.prototype, "_showComparison", 2);
-r([
+], r.prototype, "_showComparison", 2);
+n([
   u()
-], n.prototype, "_comparisonSnapshot", 2);
-r([
+], r.prototype, "_comparisonSnapshot", 2);
+n([
   u()
-], n.prototype, "_comparisonCurrent", 2);
-r([
+], r.prototype, "_comparisonCurrent", 2);
+n([
   u()
-], n.prototype, "_comparisonLoading", 2);
-r([
+], r.prototype, "_comparisonLoading", 2);
+n([
   u()
-], n.prototype, "_comparisonMode", 2);
-r([
+], r.prototype, "_comparisonMode", 2);
+n([
   u()
-], n.prototype, "_sliderPosition", 2);
-r([
+], r.prototype, "_sliderPosition", 2);
+n([
   u()
-], n.prototype, "_selectedSnapshots", 2);
-r([
+], r.prototype, "_selectedSnapshots", 2);
+n([
   u()
-], n.prototype, "_isDeleting", 2);
-r([
+], r.prototype, "_isDeleting", 2);
+n([
   u()
-], n.prototype, "_editingNoteName", 2);
-r([
+], r.prototype, "_editingNoteName", 2);
+n([
   u()
-], n.prototype, "_editingNoteValue", 2);
-r([
+], r.prototype, "_editingNoteValue", 2);
+n([
   u()
-], n.prototype, "_savingNote", 2);
-n = r([
+], r.prototype, "_savingNote", 2);
+r = n([
   v("snapshot-viewer")
-], n);
+], r);
 export {
-  n as SnapshotViewerElement
+  r as SnapshotViewerElement
 };
 //# sourceMappingURL=umbraco-media-snapshot.js.map

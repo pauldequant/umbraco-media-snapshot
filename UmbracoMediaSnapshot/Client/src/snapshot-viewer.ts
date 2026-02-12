@@ -254,32 +254,165 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
     }
 
     /**
-     * Checks if a filename is an image based on extension
+     * Determines the previewable file type from a filename
      */
-    private _isImage(filename: string): boolean {
-        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'];
-        const extension = filename.substring(filename.lastIndexOf('.')).toLowerCase();
-        return imageExtensions.includes(extension);
+    private _getFileType(filename: string): 'image' | 'video' | 'audio' | 'pdf' | 'svg' | null {
+        const ext = filename.substring(filename.lastIndexOf('.')).toLowerCase();
+
+        if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].includes(ext)) return 'image';
+        if (ext === '.svg') return 'svg';
+        if (ext === '.pdf') return 'pdf';
+        if (['.mp4', '.webm', '.ogg', '.mov'].includes(ext)) return 'video';
+        if (['.mp3', '.wav', '.ogg', '.aac', '.flac', '.m4a'].includes(ext)) return 'audio';
+
+        return null;
     }
 
     /**
-     * Opens the image preview panel
+     * Checks if a filename is an image (including SVG) for comparison support
      */
-    private _openImagePreview(version: any) {
-        if (!this._isImage(version.name)) return;
-        
+    private _isImage(filename: string): boolean {
+        const type = this._getFileType(filename);
+        return type === 'image' || type === 'svg';
+    }
+
+    /**
+     * Whether a file can be previewed in the side panel
+     */
+    private _isPreviewable(filename: string): boolean {
+        return this._getFileType(filename) !== null;
+    }
+
+    /**
+     * Returns the appropriate icon name for a file type
+     */
+    private _getFileIcon(filename: string): string {
+        switch (this._getFileType(filename)) {
+            case 'image':
+            case 'svg': return 'icon-picture';
+            case 'video': return 'icon-video';
+            case 'audio': return 'icon-sound-waves';
+            case 'pdf': return 'icon-document';
+            default: return 'icon-document';
+        }
+    }
+
+    /**
+     * Opens the preview panel for any supported file type
+     */
+    private _openPreview(version: any) {
+        if (!this._isPreviewable(version.name)) return;
+
         this._previewImageUrl = version.url;
         this._previewImageName = version.name;
         this._showPreview = true;
     }
 
     /**
-     * Closes the image preview panel
+     * Closes the preview panel
      */
     private _closePreview() {
         this._showPreview = false;
         this._previewImageUrl = null;
         this._previewImageName = '';
+    }
+
+    /**
+     * Returns the panel header title based on the current preview file type
+     */
+    private _getPreviewTitle(): string {
+        switch (this._getFileType(this._previewImageName)) {
+            case 'image':
+            case 'svg': return 'Image Preview';
+            case 'video': return 'Video Preview';
+            case 'audio': return 'Audio Preview';
+            case 'pdf': return 'PDF Preview';
+            default: return 'File Preview';
+        }
+    }
+
+    /**
+     * Renders the appropriate preview element based on file type
+     */
+    private _renderPreviewContent() {
+        if (!this._previewImageUrl) {
+            return html`<uui-loader></uui-loader>`;
+        }
+
+        const fileType = this._getFileType(this._previewImageName);
+
+        switch (fileType) {
+            case 'image':
+            case 'svg':
+                return html`
+                    <img
+                        src="${this._previewImageUrl}"
+                        alt="${this._previewImageName}"
+                        @error="${() => {
+                            this._notificationContext?.peek('warning', {
+                                data: { headline: 'Preview Error', message: 'Unable to load image preview' }
+                            });
+                        }}"
+                    />
+                `;
+
+            case 'video':
+                return html`
+                    <video
+                        controls
+                        preload="metadata"
+                        class="preview-video"
+                        @error="${() => {
+                            this._notificationContext?.peek('warning', {
+                                data: { headline: 'Preview Error', message: 'Unable to load video preview' }
+                            });
+                        }}">
+                        <source src="${this._previewImageUrl}" />
+                        Your browser does not support video playback.
+                    </video>
+                `;
+
+            case 'audio':
+                return html`
+                    <div class="preview-audio-wrapper">
+                        <uui-icon name="icon-sound-waves" class="preview-audio-icon"></uui-icon>
+                        <audio
+                            controls
+                            preload="metadata"
+                            class="preview-audio"
+                            @error="${() => {
+                                this._notificationContext?.peek('warning', {
+                                    data: { headline: 'Preview Error', message: 'Unable to load audio preview' }
+                                });
+                            }}">
+                            <source src="${this._previewImageUrl}" />
+                            Your browser does not support audio playback.
+                        </audio>
+                    </div>
+                `;
+
+            case 'pdf':
+                return html`
+                    <iframe
+                        src="${this._previewImageUrl}"
+                        class="preview-pdf"
+                        title="PDF Preview: ${this._previewImageName}"
+                        @error="${() => {
+                            this._notificationContext?.peek('warning', {
+                                data: { headline: 'Preview Error', message: 'Unable to load PDF preview' }
+                            });
+                        }}">
+                    </iframe>
+                `;
+
+            default:
+                return html`
+                    <div class="preview-unsupported">
+                        <uui-icon name="icon-document"></uui-icon>
+                        <p>Preview not available for this file type.</p>
+                    </div>
+                `;
+        }
     }
 
     // --- Selection helpers ---
@@ -526,21 +659,22 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
 
         // Show Umbraco-styled confirmation modal
         const modalHandler = this._modalManagerContext.open(this, UMB_CONFIRM_MODAL, {
-            data: {
-                headline: 'Restore File Version',
-                content: html`
-                    <p>Are you sure you want to restore <strong>"${version.name}"</strong>?</p>
-                    <p>This will replace the current file and create a new snapshot.</p>
-                    <uui-box>
-                        <p style="margin: 0;">
-                            <uui-icon name="icon-alert"></uui-icon>
-                            <strong>Warning:</strong> This action cannot be undone.
-                        </p>
-                    </uui-box>
-                `,
-                color: 'danger',
-                confirmLabel: 'Restore'
-            }
+            data:
+                {
+                    headline: 'Restore File Version',
+                    content: html`
+                        <p>Are you sure you want to restore <strong>"${version.name}"</strong>?</p>
+                        <p>This will replace the current file and create a new snapshot.</p>
+                        <uui-box>
+                            <p style="margin: 0;">
+                                <uui-icon name="icon-alert"></uui-icon>
+                                <strong>Warning:</strong> This action cannot be undone.
+                            </p>
+                        </uui-box>
+                    `,
+                    color: 'danger',
+                    confirmLabel: 'Restore'
+                }
         });
 
         // Wait for user to confirm or cancel
@@ -954,17 +1088,17 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                                 <uui-table-cell>
                                     <div class="version-cell">
                                         <div class="version-cell-primary">
-                                            ${this._isImage(v.name)
+                                            ${this._isPreviewable(v.name)
                                                 ? html`
                                                     <button
                                                         class="filename-link"
-                                                        @click="${() => this._openImagePreview(v)}"
-                                                        title="Click to preview image">
-                                                        <uui-icon name="icon-picture"></uui-icon>
+                                                        @click="${() => this._openPreview(v)}"
+                                                        title="Click to preview">
+                                                        <uui-icon name="${this._getFileIcon(v.name)}"></uui-icon>
                                                         ${v.name}
                                                     </button>
                                                 `
-                                                : html`<span class="filename-text">${v.name}</span>`
+                                                : html`<span class="filename-text"><uui-icon name="icon-document"></uui-icon> ${v.name}</span>`
                                             }
                                             ${this._renderStatus(v, globalIndex)}
                                         </div>
@@ -1036,14 +1170,14 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                     </div>
                 ` : ''}
 
-                <!-- Image Preview Side Panel -->
+                <!-- File Preview Side Panel -->
                 ${this._showPreview ? html`
                     <div class="preview-overlay" @click="${this._closePreview}"></div>
                     <div class="preview-panel">
                         <div class="preview-header">
                             <h3>
-                                <uui-icon name="icon-picture"></uui-icon>
-                                Image Preview
+                                <uui-icon name="${this._getFileIcon(this._previewImageName)}"></uui-icon>
+                                ${this._getPreviewTitle()}
                             </h3>
                             <uui-button 
                                 look="secondary" 
@@ -1056,24 +1190,8 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                             <div class="preview-filename">
                                 <strong>Filename:</strong> <br/>${this._previewImageName}
                             </div>
-                            <div class="preview-image-container">
-                                ${this._previewImageUrl 
-                                    ? html`
-                                        <img 
-                                            src="${this._previewImageUrl}" 
-                                            alt="${this._previewImageName}"
-                                            @error="${() => {
-                                                this._notificationContext?.peek('warning', { 
-                                                    data: { 
-                                                        headline: 'Preview Error', 
-                                                        message: 'Unable to load image preview' 
-                                                    } 
-                                                });
-                                            }}"
-                                        />
-                                    `
-                                    : html`<uui-loader></uui-loader>`
-                                }
+                            <div class="preview-media-container">
+                                ${this._renderPreviewContent()}
                             </div>
                             <div class="preview-actions">
                                 <uui-button 
@@ -1422,7 +1540,8 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
             word-break: break-all;
         }
 
-        .preview-image-container {
+        /* Preview media container — shared wrapper for all file types */
+        .preview-media-container {
             flex: 1;
             display: flex;
             align-items: center;
@@ -1430,10 +1549,11 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
             background: var(--uui-color-surface-alt);
             border-radius: var(--uui-border-radius);
             padding: var(--uui-size-space-4);
-            min-height: 300px;
+            min-height: 200px;
+            overflow: hidden;
         }
 
-        .preview-image-container img {
+        .preview-media-container img {
             max-width: 100%;
             max-height: 60vh;
             object-fit: contain;
@@ -1441,15 +1561,56 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
-        .preview-actions {
-            display: flex;
-            gap: var(--uui-size-space-3);
-            padding-top: var(--uui-size-space-4);
-            border-top: 1px solid var(--uui-color-border);
+        /* Video preview */
+        .preview-video {
+            max-width: 100%;
+            max-height: 60vh;
+            border-radius: var(--uui-border-radius);
+            background: #000;
         }
 
-        .preview-actions uui-button {
-            flex: 1;
+        /* Audio preview */
+        .preview-audio-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--uui-size-space-5);
+            padding: var(--uui-size-space-6);
+            width: 100%;
+        }
+
+        .preview-audio-icon {
+            font-size: 4rem;
+            color: var(--uui-color-primary);
+            opacity: 0.6;
+        }
+
+        .preview-audio {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        /* PDF preview */
+        .preview-pdf {
+            width: 100%;
+            height: 60vh;
+            border: none;
+            border-radius: var(--uui-border-radius);
+        }
+
+        /* Unsupported file type */
+        .preview-unsupported {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--uui-size-space-3);
+            padding: var(--uui-size-space-6);
+            color: var(--uui-color-text-alt);
+        }
+
+        .preview-unsupported uui-icon {
+            font-size: 3rem;
+            opacity: 0.4;
         }
 
         /* Comparison Panel Styles */
