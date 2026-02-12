@@ -22,6 +22,11 @@
         public bool EnableAutomaticCleanup { get; set; }
 
         /// <summary>
+        /// Gets or sets the interval in minutes between background cleanup runs
+        /// </summary>
+        public int CleanupIntervalMinutes { get; set; }
+
+        /// <summary>
         /// Gets or sets the SAS token expiration in hours
         /// </summary>
         public int SasTokenExpirationHours { get; set; }

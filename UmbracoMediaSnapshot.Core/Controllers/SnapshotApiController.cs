@@ -429,6 +429,7 @@
             MaxSnapshotsPerMedia = _settings.MaxSnapshotsPerMedia,
             MaxSnapshotAgeDays = _settings.MaxSnapshotAgeDays,
             EnableAutomaticCleanup = _settings.EnableAutomaticCleanup,
+            CleanupIntervalMinutes = _settings.CleanupIntervalMinutes,
             SasTokenExpirationHours = _settings.SasTokenExpirationHours,
             TrackedMediaTypes = [.. _blobService.TargetMediaTypes.OrderBy(t => t)]
         };

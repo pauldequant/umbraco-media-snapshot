@@ -35,6 +35,12 @@
         public bool EnableAutomaticCleanup { get; set; } = true;
 
         /// <summary>
+        /// Gets or sets the interval in minutes between cleanup runs (default: 60).
+        /// Only applies when <see cref="EnableAutomaticCleanup"/> is true.
+        /// </summary>
+        public int CleanupIntervalMinutes { get; set; } = 60;
+
+        /// <summary>
         /// Gets or sets additional media type aliases to include in snapshot tracking.
         /// The built-in types (Image, File, umbracoMediaArticle, etc.) are always included.
         /// </summary>

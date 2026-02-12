@@ -62,13 +62,5 @@
         /// <param name="value">The value<see cref="string?"/></param>
         /// <returns>The <see cref="string?"/></returns>
         string? ExtractFilePath(string? value);
-
-        /// <summary>
-        /// Removes old snapshots beyond <see cref="Configuration.MediaSnapshotSettings.MaxSnapshotsPerMedia"/>
-        /// </summary>
-        /// <param name="folderPrefix">The folderPrefix<see cref="string"/></param>
-        /// <param name="cancellationToken">The cancellationToken<see cref="CancellationToken"/></param>
-        /// <returns>The <see cref="Task"/></returns>
-        Task CleanupOldSnapshotsAsync(string folderPrefix, CancellationToken cancellationToken);
     }
 }

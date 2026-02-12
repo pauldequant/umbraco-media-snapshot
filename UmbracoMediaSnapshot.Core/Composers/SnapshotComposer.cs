@@ -1,6 +1,7 @@
 ﻿namespace UmbracoMediaSnapshot.Core.Composers
 {
     using Azure.Storage.Blobs;
+    using BackgroundTasks;
     using Configuration;
     using Microsoft.Extensions.DependencyInjection;
     using Migrations;
@@ -47,6 +48,9 @@
 
             // Ensure all configured media types have the fileVersionHistory property on startup
             builder.AddNotificationAsyncHandler<UmbracoApplicationStartedNotification, EnsureSnapshotPropertyHandler>();
+
+            // Register the recurring background cleanup task
+            builder.Services.AddRecurringBackgroundJob<SnapshotCleanupTask>();
         }
     }
 }

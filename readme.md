@@ -49,7 +49,7 @@ Configurable retention policies automatically delete old snapshots:
 
 - **Max snapshots per media** — keeps the N most recent versions
 - **Max snapshot age** — deletes versions older than X days
-- Cleanup runs automatically after each new snapshot is created
+- **Background scheduling** — cleanup runs as a recurring background task on a configurable interval (default: every 60 minutes), keeping media saves fast and responsive
 
 ### Configurable Media Types
 The 6 built-in Umbraco media types are tracked by default. Custom media types can be added via configuration, and the `fileVersionHistory` property is automatically added to them on application startup.
@@ -97,6 +97,7 @@ Add this section to `appsettings.json` to customize behaviour:
 | `MaxSnapshotAgeDays` | `365` | Delete snapshots older than this many days. `0` = never expire. |
 | `SasTokenExpirationHours` | `1` | How long download/preview links remain valid. |
 | `EnableAutomaticCleanup` | `true` | Automatically delete old snapshots based on the limits above. |
+| `CleanupIntervalMinutes` | `60` | How often the background cleanup task runs (in minutes). Minimum: 1. |
 | `AdditionalMediaTypes` | `[]` | Extra media type aliases to track (e.g. `["productImage", "brandAsset"]`). Built-in types are always included. |
 
 ### Built-in Media Types

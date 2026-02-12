@@ -240,10 +240,6 @@
 
                     _logger.LogInformation("Snapshot created for Media {Id} ({ContentType}) at {Path}",
                         media.Id, media.ContentType.Alias, finalVersionPath);
-
-                    // Clean up old snapshots if configured
-                    folderPrefix = finalVersionPath.Substring(0, finalVersionPath.LastIndexOf('/') + 1);
-                    await _blobService.CleanupOldSnapshotsAsync(folderPrefix, cancellationToken);
                 }
                 catch (Exception ex)
                 {

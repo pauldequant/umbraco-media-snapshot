@@ -200,8 +200,6 @@
                                 media.Id, media.ContentType.Alias, finalVersionPath);
                         }
                     }
-
-                    await _blobService.CleanupOldSnapshotsAsync(finalVersionPath.Substring(0, finalVersionPath.LastIndexOf('/') + 1), cancellationToken);
                 }
                 catch (Exception ex)
                 {
