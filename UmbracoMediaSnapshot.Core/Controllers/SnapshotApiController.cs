@@ -12,6 +12,7 @@
     using NotificationHandlers;
     using Services;
     using SixLabors.ImageSharp;
+    using System.Collections.Concurrent;
     using System.Text.Json;
     using System.Text.RegularExpressions;
     using Umbraco.Cms.Api.Management.Controllers;
@@ -27,6 +28,12 @@
     [Authorize(Policy = Umbraco.Cms.Web.Common.Authorization.AuthorizationPolicies.SectionAccessMedia)]
     public partial class SnapshotApiController : ManagementApiControllerBase
     {
+        /// <summary>
+        /// Tracks media items currently being restored. Prevents concurrent restore
+        /// operations on the same media item from different editors or browser tabs.
+        /// </summary>
+        private static readonly ConcurrentDictionary<Guid, byte> _activeRestores = new();
+
         /// <summary>
         /// Defines the _mediaService
         /// </summary>
@@ -137,7 +144,9 @@
         }
 
         /// <summary>
-        /// The RestoreSnapshot
+        /// Restores a specific snapshot version as the current media file.
+        /// Only one restore per media item is allowed at a time — concurrent
+        /// requests for the same MediaKey receive HTTP 409 Conflict.
         /// </summary>
         /// <param name="request">The request<see cref="RestoreSnapshotRequest"/></param>
         /// <param name="cancellationToken">The cancellationToken<see cref="CancellationToken"/></param>
@@ -145,9 +154,22 @@
         [HttpPost("restore")]
         [ProducesResponseType(typeof(RestoreResultModel), 200)]
         [ProducesResponseType(typeof(ProblemDetails), 400)]
+        [ProducesResponseType(typeof(ProblemDetails), 409)]
         [ProducesResponseType(typeof(ProblemDetails), 500)]
         public async Task<IActionResult> RestoreSnapshot([FromBody] RestoreSnapshotRequest request, CancellationToken cancellationToken)
         {
+            // Acquire a per-media-item lock — reject if another restore is already in progress
+            if (!_activeRestores.TryAdd(request.MediaKey, 0))
+            {
+                _logger.LogWarning("Restore already in progress for media {MediaKey}, rejecting concurrent request", request.MediaKey);
+                return Conflict(new ProblemDetails
+                {
+                    Title = "Restore in progress",
+                    Detail = "Another restore operation is already in progress for this media item. Please wait and try again.",
+                    Status = 409
+                });
+            }
+
             try
             {
                 if (request.SnapshotName.Contains("..") || request.SnapshotName.Contains('/') || request.SnapshotName.Contains('\\'))
@@ -221,6 +243,11 @@
                 _logger.LogError(ex, "Error restoring snapshot {SnapshotName} for media {MediaKey}",
                     request.SnapshotName, request.MediaKey);
                 return Problem("An unexpected error occurred while restoring the snapshot");
+            }
+            finally
+            {
+                // Always release the lock, even on failure
+                _activeRestores.TryRemove(request.MediaKey, out _);
             }
         }
 

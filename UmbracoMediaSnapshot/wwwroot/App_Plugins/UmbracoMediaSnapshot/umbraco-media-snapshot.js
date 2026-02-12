@@ -505,7 +505,14 @@ let r = class extends f(m) {
             message: l.message
           }
         }), await this._fetchVersions(this._mediaKey);
-      } else if (a.status === 401)
+      } else if (a.status === 409)
+        this._notificationContext?.peek("warning", {
+          data: {
+            headline: "Restore in Progress",
+            message: "Another restore is already running for this media item. Please wait and try again."
+          }
+        });
+      else if (a.status === 401)
         this._notificationContext?.peek("danger", {
           data: {
             headline: "Unauthorized",

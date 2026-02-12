@@ -724,6 +724,13 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                 
                 // Refresh the version list
                 await this._fetchVersions(this._mediaKey);
+            } else if (response.status === 409) {
+                this._notificationContext?.peek('warning', { 
+                    data: { 
+                        headline: 'Restore in Progress', 
+                        message: 'Another restore is already running for this media item. Please wait and try again.' 
+                    } 
+                });
             } else if (response.status === 401) {
                 this._notificationContext?.peek('danger', { 
                     data: { 
