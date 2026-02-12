@@ -24,6 +24,9 @@
         {
             builder.Services.Configure<MediaSnapshotSettings>(builder.Config.GetSection("UmbracoMediaSnapshot"));
 
+            // Ensure IMemoryCache is available for the stats cache
+            builder.Services.AddMemoryCache();
+
             builder.Services.AddSingleton(sp =>
             {
                 var configuration = sp.GetRequiredService<IConfiguration>();
@@ -34,6 +37,7 @@
             });
 
             builder.Services.AddSingleton<ISnapshotBlobService, SnapshotBlobService>();
+            builder.Services.AddSingleton<ISnapshotStatsCache, SnapshotStatsCache>();
 
             builder.PackageMigrationPlans().Add<UmbracoMediaSnapshotMigrationPlan>();
 

@@ -55,62 +55,95 @@
         private readonly ISnapshotBlobService _blobService;
 
         /// <summary>
+        /// Defines the _statsCache
+        /// </summary>
+        private readonly ISnapshotStatsCache _statsCache;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="SnapshotApiController"/> class.
         /// </summary>
         /// <param name="mediaService">The mediaService<see cref="IMediaService"/></param>
         /// <param name="settings">The settings<see cref="IOptions{MediaSnapshotSettings}"/></param>
         /// <param name="logger">The logger<see cref="ILogger{SnapshotApiController}"/></param>
         /// <param name="blobService">The blobService<see cref="ISnapshotBlobService"/></param>
-        public SnapshotApiController(IMediaService mediaService, IOptions<MediaSnapshotSettings> settings, ILogger<SnapshotApiController> logger, ISnapshotBlobService blobService)
+        /// <param name="statsCache">The statsCache<see cref="ISnapshotStatsCache"/></param>
+        public SnapshotApiController(IMediaService mediaService, IOptions<MediaSnapshotSettings> settings, ILogger<SnapshotApiController> logger, ISnapshotBlobService blobService, ISnapshotStatsCache statsCache)
         {
             _mediaService = mediaService;
             _settings = settings.Value;
             _logger = logger;
             _blobService = blobService;
+            _statsCache = statsCache;
         }
 
         /// <summary>
         /// The GetVersions
         /// </summary>
         /// <param name="mediaKey">The mediaKey<see cref="Guid"/></param>
+        /// <param name="page">The 1-based page number (default: 1)</param>
+        /// <param name="pageSize">The number of items per page (default: 10, max: 50)</param>
         /// <param name="cancellationToken">The cancellationToken<see cref="CancellationToken"/></param>
         /// <returns>The <see cref="Task{IActionResult}"/></returns>
         [HttpGet("versions/{mediaKey:guid}")]
-        [ProducesResponseType(typeof(IEnumerable<SnapshotVersionModel>), 200)]
+        [ProducesResponseType(typeof(PagedSnapshotResponse), 200)]
         [ProducesResponseType(typeof(ProblemDetails), 500)]
-        public async Task<IActionResult> GetVersions(Guid mediaKey, CancellationToken cancellationToken)
+        public async Task<IActionResult> GetVersions(Guid mediaKey, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken cancellationToken = default)
         {
             try
             {
+                // Clamp inputs
+                page = Math.Max(1, page);
+                pageSize = Math.Clamp(pageSize, 1, 50);
+
                 var media = _mediaService.GetById(mediaKey);
                 if (media == null) return NotFound();
 
                 var umbracoFileValue = media.GetValue<string>("umbracoFile");
                 string? folderPath = _blobService.ExtractFolderPath(umbracoFileValue);
 
-                if (string.IsNullOrEmpty(folderPath)) return Ok(Enumerable.Empty<SnapshotVersionModel>());
+                if (string.IsNullOrEmpty(folderPath)) return Ok(new PagedSnapshotResponse { Page = page, PageSize = pageSize });
 
                 var snapshotContainer = _blobService.GetSnapshotContainer();
 
-                if (!await snapshotContainer.ExistsAsync(cancellationToken)) return Ok(Enumerable.Empty<SnapshotVersionModel>());
+                if (!await snapshotContainer.ExistsAsync(cancellationToken)) return Ok(new PagedSnapshotResponse { Page = page, PageSize = pageSize });
 
-                var versions = new List<SnapshotVersionModel>();
+                // Collect lightweight blob info first (no SAS generation)
+                var allBlobs = new List<(Azure.Storage.Blobs.Models.BlobItem Blob, DateTime UploadDate)>();
                 var prefix = folderPath.EndsWith("/") ? folderPath : folderPath + "/";
 
                 await foreach (var blobItem in snapshotContainer.GetBlobsAsync(prefix: prefix, traits: BlobTraits.Metadata, cancellationToken: cancellationToken))
                 {
-                    var blobClient = snapshotContainer.GetBlobClient(blobItem.Name);
-
-                    // Generate a temporary SAS link (valid for configured hours)
-                    var sasUrl = blobClient.GenerateSasUri(BlobSasPermissions.Read, DateTimeOffset.UtcNow.AddHours(_settings.SasTokenExpirationHours));
-
-                    // Use the preserved UploadDate metadata for display, fall back to blob LastModified
                     DateTime uploadDate = blobItem.Properties.LastModified?.DateTime ?? DateTime.MinValue;
                     if (blobItem.Metadata.TryGetValue("UploadDate", out var uploadDateStr)
                         && DateTime.TryParse(uploadDateStr, null, System.Globalization.DateTimeStyles.RoundtripKind, out var parsedDate))
                     {
                         uploadDate = parsedDate;
                     }
+
+                    allBlobs.Add((blobItem, uploadDate));
+                }
+
+                // Sort descending by date, then page
+                var sorted = allBlobs.OrderByDescending(b => b.UploadDate).ToList();
+                var totalCount = sorted.Count;
+                var paged = sorted.Skip((page - 1) * pageSize).Take(pageSize);
+
+                // Compute summary stats from ALL blobs (before paging)
+                var totalSizeBytes = allBlobs.Sum(b => b.Blob.Properties.ContentLength ?? 0);
+                var oldestDate = allBlobs.Count > 0 ? allBlobs.Min(b => b.UploadDate) : (DateTime?)null;
+                var newestDate = allBlobs.Count > 0 ? allBlobs.Max(b => b.UploadDate) : (DateTime?)null;
+                var uniqueUploaders = allBlobs
+                    .Select(b => b.Blob.Metadata.TryGetValue("UploaderName", out var u) ? u : null)
+                    .Where(u => u is not null)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Count();
+
+                // Only generate SAS URLs for the visible page
+                var versions = new List<SnapshotVersionModel>();
+                foreach (var (blobItem, uploadDate) in paged)
+                {
+                    var blobClient = snapshotContainer.GetBlobClient(blobItem.Name);
+                    var sasUrl = blobClient.GenerateSasUri(BlobSasPermissions.Read, DateTimeOffset.UtcNow.AddHours(_settings.SasTokenExpirationHours));
 
                     versions.Add(new SnapshotVersionModel
                     {
@@ -129,12 +162,23 @@
                     });
                 }
 
-                return Ok(versions.OrderByDescending(v => v.Date));
+                return Ok(new PagedSnapshotResponse
+                {
+                    Items = versions,
+                    TotalCount = totalCount,
+                    Page = page,
+                    PageSize = pageSize,
+                    TotalPages = pageSize > 0 ? (int)Math.Ceiling((double)totalCount / pageSize) : 0,
+                    TotalSizeBytes = totalSizeBytes,
+                    OldestDate = oldestDate,
+                    NewestDate = newestDate,
+                    UniqueUploaderCount = uniqueUploaders
+                });
             }
             catch (RequestFailedException ex) when (ex.Status == 404)
             {
                 _logger.LogWarning("Container or blob not found for media {MediaKey}", mediaKey);
-                return Ok(Enumerable.Empty<SnapshotVersionModel>());
+                return Ok(new PagedSnapshotResponse { Page = page, PageSize = pageSize });
             }
             catch (Exception ex)
             {
@@ -264,9 +308,9 @@
         {
             try
             {
-                var snapshotContainer = _blobService.GetSnapshotContainer();
+                var stats = await _statsCache.GetOrComputeAsync(cancellationToken);
 
-                if (!await snapshotContainer.ExistsAsync(cancellationToken))
+                if (stats.TotalSnapshotCount == 0)
                 {
                     return Ok(new SnapshotStorageModel
                     {
@@ -274,35 +318,7 @@
                     });
                 }
 
-                // Group blobs by their top-level folder (the Umbraco media GUID folder)
-                var folderStats = new Dictionary<string, (int Count, long Size, DateTime? Latest, DateTime? Oldest)>(StringComparer.OrdinalIgnoreCase);
-
-                await foreach (var blob in snapshotContainer.GetBlobsAsync(cancellationToken: cancellationToken))
-                {
-                    var parts = blob.Name.Split('/', 2);
-                    var folder = parts.Length > 1 ? parts[0] : "(root)";
-                    var size = blob.Properties.ContentLength ?? 0;
-                    var modified = blob.Properties.LastModified?.DateTime;
-
-                    if (folderStats.TryGetValue(folder, out var existing))
-                    {
-                        folderStats[folder] = (
-                            existing.Count + 1,
-                            existing.Size + size,
-                            modified > existing.Latest || existing.Latest is null ? modified : existing.Latest,
-                            modified < existing.Oldest || existing.Oldest is null ? modified : existing.Oldest
-                        );
-                    }
-                    else
-                    {
-                        folderStats[folder] = (1, size, modified, modified);
-                    }
-                }
-
-                var totalCount = folderStats.Values.Sum(f => f.Count);
-                var totalSize = folderStats.Values.Sum(f => f.Size);
-
-                var topConsumers = folderStats
+                var topConsumers = stats.Folders
                     .OrderByDescending(kvp => kvp.Value.Size)
                     .Take(10)
                     .Select(kvp => new SnapshotFolderSummary
@@ -321,10 +337,10 @@
 
                 return Ok(new SnapshotStorageModel
                 {
-                    TotalSnapshotCount = totalCount,
-                    TotalSizeBytes = totalSize,
-                    TotalSizeFormatted = FormatBytes(totalSize),
-                    MediaItemCount = folderStats.Count,
+                    TotalSnapshotCount = stats.TotalSnapshotCount,
+                    TotalSizeBytes = stats.TotalSizeBytes,
+                    TotalSizeFormatted = FormatBytes(stats.TotalSizeBytes),
+                    MediaItemCount = stats.MediaItemCount,
                     TopConsumers = topConsumers,
                     Settings = BuildSettingsSummary()
                 });
@@ -344,40 +360,63 @@
         /// <summary>
         /// Resolves snapshot folder names back to Umbraco media items by searching
         /// for media whose umbracoFile path contains the folder name.
-        /// Populates <see cref="SnapshotFolderSummary.MediaKey"/> and
-        /// <see cref="SnapshotFolderSummary.MediaName"/> when a match is found.
+        /// Only examines the specific folders needed rather than loading all media.
         /// </summary>
         /// <param name="folders">The folders<see cref="List{SnapshotFolderSummary}"/></param>
         private void ResolveMediaItems(List<SnapshotFolderSummary> folders)
         {
-            // Build a lookup of all target media types so we can search efficiently.
-            // GetRootMedia + descendants gives us all media items to scan.
-            var allMedia = _mediaService.GetRootMedia()?
-                .SelectMany(root => _mediaService.GetPagedDescendants(root.Id, 0, int.MaxValue, out _, null))
-                .Concat(_mediaService.GetRootMedia()!)
-                .Where(m => _blobService.IsTargetMediaType(m.ContentType.Alias))
-                .ToList() ?? [];
+            // Only scan media once, paginated in manageable chunks, and stop early
+            // when all folders have been resolved.
+            var unresolvedFolders = new HashSet<string>(
+                folders.Select(f => f.FolderName),
+                StringComparer.OrdinalIgnoreCase);
 
-            // Map folder name → media item by extracting the folder from each media's umbracoFile
-            var folderToMedia = new Dictionary<string, IMedia>(StringComparer.OrdinalIgnoreCase);
-            foreach (var media in allMedia)
+            var folderToSummary = folders.ToDictionary(f => f.FolderName, StringComparer.OrdinalIgnoreCase);
+
+            const int pageSize = 500;
+
+            foreach (var root in _mediaService.GetRootMedia() ?? [])
             {
-                var umbracoFileValue = media.GetValue<string>("umbracoFile");
-                var folderPath = _blobService.ExtractFolderPath(umbracoFileValue);
-                if (!string.IsNullOrEmpty(folderPath) && !folderToMedia.ContainsKey(folderPath))
+                // Check the root itself
+                TryResolve(root, unresolvedFolders, folderToSummary);
+                if (unresolvedFolders.Count == 0) return;
+
+                // Page through descendants in chunks
+                int pageIndex = 0;
+                long total;
+                do
                 {
-                    folderToMedia[folderPath] = media;
-                }
+                    var descendants = _mediaService.GetPagedDescendants(root.Id, pageIndex, pageSize, out total, null);
+                    foreach (var media in descendants)
+                    {
+                        if (!_blobService.IsTargetMediaType(media.ContentType.Alias)) continue;
+
+                        TryResolve(media, unresolvedFolders, folderToSummary);
+                        if (unresolvedFolders.Count == 0) return;
+                    }
+
+                    pageIndex++;
+                } while ((long)pageIndex * pageSize < total);
             }
+        }
 
-            // Populate the folder summaries with the resolved media info
-            foreach (var folder in folders)
+        /// <summary>
+        /// Attempts to match a media item's folder path against the unresolved folder set
+        /// </summary>
+        /// <param name="media">The media<see cref="IMedia"/></param>
+        /// <param name="unresolvedFolders">The unresolvedFolders<see cref="HashSet{string}"/></param>
+        /// <param name="folderToSummary">The folderToSummary<see cref="Dictionary{string, SnapshotFolderSummary}"/></param>
+        private void TryResolve(IMedia media, HashSet<string> unresolvedFolders, Dictionary<string, SnapshotFolderSummary> folderToSummary)
+        {
+            var umbracoFileValue = media.GetValue<string>("umbracoFile");
+            var folderPath = _blobService.ExtractFolderPath(umbracoFileValue);
+
+            if (!string.IsNullOrEmpty(folderPath)
+                && unresolvedFolders.Remove(folderPath)
+                && folderToSummary.TryGetValue(folderPath, out var summary))
             {
-                if (folderToMedia.TryGetValue(folder.FolderName, out var media))
-                {
-                    folder.MediaKey = media.Key;
-                    folder.MediaName = media.Name;
-                }
+                summary.MediaKey = media.Key;
+                summary.MediaName = media.Name;
             }
         }
 
@@ -866,7 +905,7 @@
 
                 await snapshotBlob.SetMetadataAsync(metadata, cancellationToken: cancellationToken);
 
-                _logger.LogInformation("Updated note on snapshot {SnapshotName} for media {MediaKey}",
+                _logger.LogInformation("Updating note on snapshot {SnapshotName} for media {MediaKey}",
                     request.SnapshotName, request.MediaKey);
 
                 return Ok(new { success = true, message = "Note updated successfully" });

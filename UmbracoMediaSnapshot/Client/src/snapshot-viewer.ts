@@ -76,6 +76,24 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
     @state()
     private _savingNote = false;
 
+    @state()
+    private _totalCount = 0;
+
+    @state()
+    private _totalPages = 1;
+
+    @state()
+    private _totalSizeBytes = 0;
+
+    @state()
+    private _oldestDate: string | null = null;
+
+    @state()
+    private _newestDate: string | null = null;
+
+    @state()
+    private _uniqueUploaderCount = 0;
+
     private _pageSize = 10;
 
     private _authContext?: typeof UMB_AUTH_CONTEXT.TYPE;
@@ -135,7 +153,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
         }
 
         try {
-            const url = `/umbraco/management/api/v1/snapshot/versions/${mediaKey}`;
+            const url = `/umbraco/management/api/v1/snapshot/versions/${mediaKey}?page=${this._currentPage}&pageSize=${this._pageSize}`;
 
             // 3. Manually add the Authorization header
             const response = await fetch(url, {
@@ -147,7 +165,14 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
             });
 
             if (response.ok) {
-                this._versions = await response.json();
+                const result = await response.json();
+                this._versions = result.items;
+                this._totalCount = result.totalCount;
+                this._totalPages = result.totalPages;
+                this._totalSizeBytes = result.totalSizeBytes;
+                this._oldestDate = result.oldestDate;
+                this._newestDate = result.newestDate;
+                this._uniqueUploaderCount = result.uniqueUploaderCount;
                 // Clear selection when versions are refreshed
                 this._selectedSnapshots = new Set();
             } else if (response.status === 401) {
@@ -231,26 +256,12 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
     }
 
     /**
-     * Returns the total number of pages based on versions count and page size
-     */
-    private get _totalPages(): number {
-        return Math.max(1, Math.ceil(this._versions.length / this._pageSize));
-    }
-
-    /**
-     * Returns the versions for the current page
-     */
-    private get _pagedVersions(): any[] {
-        const start = (this._currentPage - 1) * this._pageSize;
-        return this._versions.slice(start, start + this._pageSize);
-    }
-
-    /**
      * Handles page change from the pagination component
      */
     private _onPageChange(event: Event) {
         const target = event.target as HTMLElement & { current: number };
         this._currentPage = target.current;
+        this._fetchVersions(this._mediaKey);
     }
 
     /**
@@ -435,7 +446,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
      */
     private _toggleSelectAll() {
         const pageOffset = (this._currentPage - 1) * this._pageSize;
-        const selectableOnPage = this._pagedVersions
+        const selectableOnPage = this._versions
             .filter((_, i) => (pageOffset + i) !== 0)
             .map(v => v.name);
 
@@ -458,7 +469,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
      */
     private get _allPageSelected(): boolean {
         const pageOffset = (this._currentPage - 1) * this._pageSize;
-        const selectableOnPage = this._pagedVersions
+        const selectableOnPage = this._versions
             .filter((_, i) => (pageOffset + i) !== 0);
         return selectableOnPage.length > 0
             && selectableOnPage.every(v => this._selectedSnapshots.has(v.name));
@@ -960,44 +971,38 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
      * Renders a compact summary stats strip for this media item's snapshots
      */
     private _renderStats() {
-        if (this._versions.length === 0) return '';
-
-        const totalSize = this._versions.reduce((sum, v) => sum + (v.size || 0), 0);
-        const dates = this._versions.map(v => new Date(v.date).getTime()).filter(t => !isNaN(t));
-        const oldestDate = dates.length > 0 ? new Date(Math.min(...dates)) : null;
-        const newestDate = dates.length > 0 ? new Date(Math.max(...dates)) : null;
-        const uniqueUploaders = new Set(this._versions.map(v => v.uploader).filter(Boolean));
+        if (this._totalCount === 0) return '';
 
         return html`
             <div class="stats-strip">
                 <div class="stats-strip-item">
                     <uui-icon name="icon-documents"></uui-icon>
-                    <span class="stats-strip-value">${this._versions.length}</span>
-                    <span class="stats-strip-label">Snapshot${this._versions.length !== 1 ? 's' : ''}</span>
+                    <span class="stats-strip-value">${this._totalCount}</span>
+                    <span class="stats-strip-label">Snapshot${this._totalCount !== 1 ? 's' : ''}</span>
                 </div>
                 <div class="stats-strip-divider"></div>
                 <div class="stats-strip-item">
                     <uui-icon name="icon-server"></uui-icon>
-                    <span class="stats-strip-value">${this._formatSize(totalSize)}</span>
+                    <span class="stats-strip-value">${this._formatSize(this._totalSizeBytes)}</span>
                     <span class="stats-strip-label">Total Size</span>
                 </div>
                 <div class="stats-strip-divider"></div>
                 <div class="stats-strip-item">
                     <uui-icon name="icon-calendar"></uui-icon>
-                    <span class="stats-strip-value">${oldestDate ? this._formatDate(oldestDate.toISOString()) : '—'}</span>
+                    <span class="stats-strip-value">${this._oldestDate ? this._formatDate(this._oldestDate) : '—'}</span>
                     <span class="stats-strip-label">Oldest</span>
                 </div>
                 <div class="stats-strip-divider"></div>
                 <div class="stats-strip-item">
                     <uui-icon name="icon-calendar"></uui-icon>
-                    <span class="stats-strip-value">${newestDate ? this._formatDate(newestDate.toISOString()) : '—'}</span>
+                    <span class="stats-strip-value">${this._newestDate ? this._formatDate(this._newestDate) : '—'}</span>
                     <span class="stats-strip-label">Latest</span>
                 </div>
                 <div class="stats-strip-divider"></div>
                 <div class="stats-strip-item">
                     <uui-icon name="icon-users"></uui-icon>
-                    <span class="stats-strip-value">${uniqueUploaders.size}</span>
-                    <span class="stats-strip-label">Contributor${uniqueUploaders.size !== 1 ? 's' : ''}</span>
+                    <span class="stats-strip-value">${this._uniqueUploaderCount}</span>
+                    <span class="stats-strip-label">Contributor${this._uniqueUploaderCount !== 1 ? 's' : ''}</span>
                 </div>
             </div>
         `;
@@ -1019,8 +1024,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
             `;
         }
 
-        const isSingleVersion = this._versions.length === 1;
-        const pagedVersions = this._pagedVersions;
+        const isSingleVersion = this._versions.length === 1 && this._totalCount === 1;
         const pageOffset = (this._currentPage - 1) * this._pageSize;
         const hasSelection = this._selectedSnapshots.size > 0;
 
@@ -1073,7 +1077,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                         <uui-table-head-cell style="text-align: right;">Actions</uui-table-head-cell>
                     </uui-table-head>
 
-                    ${pagedVersions.map((v, i) => {
+                    ${this._versions.map((v, i) => {
                         const globalIndex = pageOffset + i;
                         const isLatest = globalIndex === 0;
                         const isSelected = this._selectedSnapshots.has(v.name);
