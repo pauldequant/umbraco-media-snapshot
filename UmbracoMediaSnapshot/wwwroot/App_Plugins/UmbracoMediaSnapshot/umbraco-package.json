@@ -1,7 +1,7 @@
 {
   "id": "UmbracoMediaSnapshot",
   "name": "Umbraco Media Snapshot",
-  "version": "2.0.2",
+  "version": "2.0.4",
   "allowTelemetry": true,
   "extensions": [
     {
@@ -16,6 +16,24 @@
         "group": "Media Snapshot",
         "propertyEditorSchemaAlias": "UmbracoMediaSnapshot.PropertyEditorUi"
       }
+    },
+    {
+      "name": "Snapshot Storage Dashboard",
+      "alias": "UmbracoMediaSnapshot.Dashboard",
+      "type": "dashboard",
+      "js": "/App_Plugins/UmbracoMediaSnapshot/umbraco-media-snapshot2.js",
+      "elementName": "snapshot-dashboard",
+      "weight": 10,
+      "meta": {
+        "label": "Snapshot Storage",
+        "pathname": "snapshot-storage"
+      },
+      "conditions": [
+        {
+          "alias": "Umb.Condition.SectionAlias",
+          "match": "Umb.Section.Media"
+        }
+      ]
     }
   ]
 }

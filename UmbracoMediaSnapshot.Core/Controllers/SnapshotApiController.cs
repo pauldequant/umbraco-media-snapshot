@@ -224,6 +224,162 @@
         }
 
         /// <summary>
+        /// Returns aggregated storage statistics for all snapshots
+        /// in the umbraco-snapshots container, used by the dashboard
+        /// </summary>
+        /// <param name="cancellationToken">The cancellationToken<see cref="CancellationToken"/></param>
+        /// <returns>The <see cref="Task{IActionResult}"/></returns>
+        [HttpGet("storage-stats")]
+        [ProducesResponseType(typeof(SnapshotStorageModel), 200)]
+        [ProducesResponseType(typeof(ProblemDetails), 500)]
+        public async Task<IActionResult> GetStorageStats(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var snapshotContainer = _blobService.GetSnapshotContainer();
+
+                if (!await snapshotContainer.ExistsAsync(cancellationToken))
+                {
+                    return Ok(new SnapshotStorageModel
+                    {
+                        Settings = BuildSettingsSummary()
+                    });
+                }
+
+                // Group blobs by their top-level folder (the Umbraco media GUID folder)
+                var folderStats = new Dictionary<string, (int Count, long Size, DateTime? Latest, DateTime? Oldest)>(StringComparer.OrdinalIgnoreCase);
+
+                await foreach (var blob in snapshotContainer.GetBlobsAsync(cancellationToken: cancellationToken))
+                {
+                    var parts = blob.Name.Split('/', 2);
+                    var folder = parts.Length > 1 ? parts[0] : "(root)";
+                    var size = blob.Properties.ContentLength ?? 0;
+                    var modified = blob.Properties.LastModified?.DateTime;
+
+                    if (folderStats.TryGetValue(folder, out var existing))
+                    {
+                        folderStats[folder] = (
+                            existing.Count + 1,
+                            existing.Size + size,
+                            modified > existing.Latest || existing.Latest is null ? modified : existing.Latest,
+                            modified < existing.Oldest || existing.Oldest is null ? modified : existing.Oldest
+                        );
+                    }
+                    else
+                    {
+                        folderStats[folder] = (1, size, modified, modified);
+                    }
+                }
+
+                var totalCount = folderStats.Values.Sum(f => f.Count);
+                var totalSize = folderStats.Values.Sum(f => f.Size);
+
+                var topConsumers = folderStats
+                    .OrderByDescending(kvp => kvp.Value.Size)
+                    .Take(10)
+                    .Select(kvp => new SnapshotFolderSummary
+                    {
+                        FolderName = kvp.Key,
+                        SnapshotCount = kvp.Value.Count,
+                        TotalSizeBytes = kvp.Value.Size,
+                        TotalSizeFormatted = FormatBytes(kvp.Value.Size),
+                        LatestSnapshotDate = kvp.Value.Latest,
+                        OldestSnapshotDate = kvp.Value.Oldest
+                    })
+                    .ToList();
+
+                // Resolve each folder to its owning media item for backoffice linking
+                ResolveMediaItems(topConsumers);
+
+                return Ok(new SnapshotStorageModel
+                {
+                    TotalSnapshotCount = totalCount,
+                    TotalSizeBytes = totalSize,
+                    TotalSizeFormatted = FormatBytes(totalSize),
+                    MediaItemCount = folderStats.Count,
+                    TopConsumers = topConsumers,
+                    Settings = BuildSettingsSummary()
+                });
+            }
+            catch (RequestFailedException ex)
+            {
+                _logger.LogError(ex, "Azure storage error while retrieving snapshot storage stats");
+                return Problem("Failed to retrieve storage statistics. Please check your Azure Blob Storage configuration.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving snapshot storage stats");
+                return Problem("An unexpected error occurred while retrieving storage statistics.");
+            }
+        }
+
+        /// <summary>
+        /// Resolves snapshot folder names back to Umbraco media items by searching
+        /// for media whose umbracoFile path contains the folder name.
+        /// Populates <see cref="SnapshotFolderSummary.MediaKey"/> and
+        /// <see cref="SnapshotFolderSummary.MediaName"/> when a match is found.
+        /// </summary>
+        /// <param name="folders">The folders<see cref="List{SnapshotFolderSummary}"/></param>
+        private void ResolveMediaItems(List<SnapshotFolderSummary> folders)
+        {
+            // Build a lookup of all target media types so we can search efficiently.
+            // GetRootMedia + descendants gives us all media items to scan.
+            var allMedia = _mediaService.GetRootMedia()?
+                .SelectMany(root => _mediaService.GetPagedDescendants(root.Id, 0, int.MaxValue, out _, null))
+                .Concat(_mediaService.GetRootMedia()!)
+                .Where(m => _blobService.IsTargetMediaType(m.ContentType.Alias))
+                .ToList() ?? [];
+
+            // Map folder name → media item by extracting the folder from each media's umbracoFile
+            var folderToMedia = new Dictionary<string, IMedia>(StringComparer.OrdinalIgnoreCase);
+            foreach (var media in allMedia)
+            {
+                var umbracoFileValue = media.GetValue<string>("umbracoFile");
+                var folderPath = _blobService.ExtractFolderPath(umbracoFileValue);
+                if (!string.IsNullOrEmpty(folderPath) && !folderToMedia.ContainsKey(folderPath))
+                {
+                    folderToMedia[folderPath] = media;
+                }
+            }
+
+            // Populate the folder summaries with the resolved media info
+            foreach (var folder in folders)
+            {
+                if (folderToMedia.TryGetValue(folder.FolderName, out var media))
+                {
+                    folder.MediaKey = media.Key;
+                    folder.MediaName = media.Name;
+                }
+            }
+        }
+
+        /// <summary>
+        /// The BuildSettingsSummary
+        /// </summary>
+        /// <returns>The <see cref="SnapshotSettingsSummary"/></returns>
+        private SnapshotSettingsSummary BuildSettingsSummary() => new()
+        {
+            MaxSnapshotsPerMedia = _settings.MaxSnapshotsPerMedia,
+            MaxSnapshotAgeDays = _settings.MaxSnapshotAgeDays,
+            EnableAutomaticCleanup = _settings.EnableAutomaticCleanup,
+            SasTokenExpirationHours = _settings.SasTokenExpirationHours
+        };
+
+        /// <summary>
+        /// Formats a byte count into a human-readable string
+        /// </summary>
+        /// <param name="bytes">The bytes<see cref="long"/></param>
+        /// <returns>The <see cref="string"/></returns>
+        private static string FormatBytes(long bytes)
+        {
+            if (bytes == 0) return "0 B";
+            string[] units = ["B", "KB", "MB", "GB", "TB"];
+            int i = (int)Math.Floor(Math.Log(bytes, 1024));
+            i = Math.Min(i, units.Length - 1);
+            return $"{bytes / Math.Pow(1024, i):F1} {units[i]}";
+        }
+
+        /// <summary>
         /// Replaces the current media blob with the snapshot content,
         /// deleting the old blob if it lives at a different path
         /// </summary>

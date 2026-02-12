@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 export default defineConfig({
     build: {
         lib: {
-            entry: ["src/snapshot-viewer.ts"],
+            entry: ["src/snapshot-viewer.ts", "src/snapshot-dashboard.ts"],
             formats: ["es"],
             fileName: "umbraco-media-snapshot", 
         },

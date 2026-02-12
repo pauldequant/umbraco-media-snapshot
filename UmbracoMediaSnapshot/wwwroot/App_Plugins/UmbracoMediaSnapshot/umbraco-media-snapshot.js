@@ -1,17 +1,17 @@
-import { LitElement as m, html as s, css as g, state as l, customElement as b } from "@umbraco-cms/backoffice/external/lit";
-import { UmbElementMixin as _ } from "@umbraco-cms/backoffice/element-api";
+import { LitElement as m, html as s, css as g, state as u, customElement as b } from "@umbraco-cms/backoffice/external/lit";
+import { UmbElementMixin as v } from "@umbraco-cms/backoffice/element-api";
 import { UMB_WORKSPACE_CONTEXT as f } from "@umbraco-cms/backoffice/workspace";
-import { UMB_AUTH_CONTEXT as v } from "@umbraco-cms/backoffice/auth";
+import { UMB_AUTH_CONTEXT as _ } from "@umbraco-cms/backoffice/auth";
 import { UMB_NOTIFICATION_CONTEXT as w } from "@umbraco-cms/backoffice/notification";
 import { UMB_MODAL_MANAGER_CONTEXT as y, UMB_CONFIRM_MODAL as p } from "@umbraco-cms/backoffice/modal";
-var x = Object.defineProperty, k = Object.getOwnPropertyDescriptor, r = (e, i, t, o) => {
-  for (var a = o > 1 ? void 0 : o ? k(i, t) : i, u = e.length - 1, d; u >= 0; u--)
-    (d = e[u]) && (a = (o ? d(i, t, a) : d(a)) || a);
+var x = Object.defineProperty, k = Object.getOwnPropertyDescriptor, l = (e, i, t, o) => {
+  for (var a = o > 1 ? void 0 : o ? k(i, t) : i, r = e.length - 1, c; r >= 0; r--)
+    (c = e[r]) && (a = (o ? c(i, t, a) : c(a)) || a);
   return o && a && x(i, t, a), a;
 };
-let n = class extends _(m) {
+let n = class extends v(m) {
   constructor() {
-    super(), this._versions = [], this._loading = !0, this._mediaKey = "", this._previewImageUrl = null, this._previewImageName = "", this._showPreview = !1, this._isRestoring = !1, this._currentPage = 1, this._showComparison = !1, this._comparisonSnapshot = null, this._comparisonCurrent = null, this._comparisonLoading = !1, this._comparisonMode = "side-by-side", this._sliderPosition = 50, this._selectedSnapshots = /* @__PURE__ */ new Set(), this._isDeleting = !1, this._pageSize = 10, this.consumeContext(v, (e) => {
+    super(), this._versions = [], this._loading = !0, this._mediaKey = "", this._previewImageUrl = null, this._previewImageName = "", this._showPreview = !1, this._isRestoring = !1, this._currentPage = 1, this._showComparison = !1, this._comparisonSnapshot = null, this._comparisonCurrent = null, this._comparisonLoading = !1, this._comparisonMode = "side-by-side", this._sliderPosition = 50, this._selectedSnapshots = /* @__PURE__ */ new Set(), this._isDeleting = !1, this._pageSize = 10, this.consumeContext(_, (e) => {
       this._authContext = e;
     }), this.consumeContext(w, (e) => {
       this._notificationContext = e;
@@ -156,7 +156,7 @@ let n = class extends _(m) {
    * Toggles select-all for the current page (excluding the latest version at index 0)
    */
   _toggleSelectAll() {
-    const e = (this._currentPage - 1) * this._pageSize, i = this._pagedVersions.filter((a, u) => e + u !== 0).map((a) => a.name), t = i.every((a) => this._selectedSnapshots.has(a)), o = new Set(this._selectedSnapshots);
+    const e = (this._currentPage - 1) * this._pageSize, i = this._pagedVersions.filter((a, r) => e + r !== 0).map((a) => a.name), t = i.every((a) => this._selectedSnapshots.has(a)), o = new Set(this._selectedSnapshots);
     t ? i.forEach((a) => o.delete(a)) : i.forEach((a) => o.add(a)), this._selectedSnapshots = o;
   }
   /**
@@ -374,11 +374,11 @@ let n = class extends _(m) {
         })
       });
       if (a.ok) {
-        const u = await a.json();
+        const r = await a.json();
         this._notificationContext?.peek("positive", {
           data: {
             headline: "Snapshot Restored",
-            message: u.message
+            message: r.message
           }
         }), await this._fetchVersions(this._mediaKey);
       } else if (a.status === 401)
@@ -389,11 +389,11 @@ let n = class extends _(m) {
           }
         });
       else {
-        const u = await a.json();
+        const r = await a.json();
         this._notificationContext?.peek("danger", {
           data: {
             headline: "Restore Failed",
-            message: u.detail || "Unknown error"
+            message: r.detail || "Unknown error"
           }
         });
       }
@@ -580,6 +580,46 @@ let n = class extends _(m) {
             </div>
         `;
   }
+  /**
+   * Renders a compact summary stats strip for this media item's snapshots
+   */
+  _renderStats() {
+    if (this._versions.length === 0) return "";
+    const e = this._versions.reduce((r, c) => r + (c.size || 0), 0), i = this._versions.map((r) => new Date(r.date).getTime()).filter((r) => !isNaN(r)), t = i.length > 0 ? new Date(Math.min(...i)) : null, o = i.length > 0 ? new Date(Math.max(...i)) : null, a = new Set(this._versions.map((r) => r.uploader).filter(Boolean));
+    return s`
+            <div class="stats-strip">
+                <div class="stats-strip-item">
+                    <uui-icon name="icon-documents"></uui-icon>
+                    <span class="stats-strip-value">${this._versions.length}</span>
+                    <span class="stats-strip-label">Snapshot${this._versions.length !== 1 ? "s" : ""}</span>
+                </div>
+                <div class="stats-strip-divider"></div>
+                <div class="stats-strip-item">
+                    <uui-icon name="icon-server"></uui-icon>
+                    <span class="stats-strip-value">${this._formatSize(e)}</span>
+                    <span class="stats-strip-label">Total Size</span>
+                </div>
+                <div class="stats-strip-divider"></div>
+                <div class="stats-strip-item">
+                    <uui-icon name="icon-calendar"></uui-icon>
+                    <span class="stats-strip-value">${t ? this._formatDate(t.toISOString()) : "—"}</span>
+                    <span class="stats-strip-label">Oldest</span>
+                </div>
+                <div class="stats-strip-divider"></div>
+                <div class="stats-strip-item">
+                    <uui-icon name="icon-calendar"></uui-icon>
+                    <span class="stats-strip-value">${o ? this._formatDate(o.toISOString()) : "—"}</span>
+                    <span class="stats-strip-label">Latest</span>
+                </div>
+                <div class="stats-strip-divider"></div>
+                <div class="stats-strip-item">
+                    <uui-icon name="icon-users"></uui-icon>
+                    <span class="stats-strip-value">${a.size}</span>
+                    <span class="stats-strip-label">Contributor${a.size !== 1 ? "s" : ""}</span>
+                </div>
+            </div>
+        `;
+  }
   render() {
     if (this._loading)
       return s`<div class="loader"><uui-loader></uui-loader> Fetching snapshots...</div>`;
@@ -595,6 +635,9 @@ let n = class extends _(m) {
     const e = this._versions.length === 1, i = this._pagedVersions, t = (this._currentPage - 1) * this._pageSize, o = this._selectedSnapshots.size > 0;
     return s`
             <div class="snapshot-container">
+
+                <!-- Summary stats for this media item -->
+                ${this._renderStats()}
 
                 <!-- Bulk action toolbar -->
                 ${o ? s`
@@ -641,17 +684,17 @@ let n = class extends _(m) {
                         <uui-table-head-cell>Actions</uui-table-head-cell>
                     </uui-table-head>
 
-                    ${i.map((a, u) => {
-      const d = t + u, c = d === 0, h = this._selectedSnapshots.has(a.name);
+                    ${i.map((a, r) => {
+      const c = t + r, d = c === 0, h = this._selectedSnapshots.has(a.name);
       return s`
                             <uui-table-row class="${h ? "row-selected" : ""}">
                                 <uui-table-cell style="width: 40px;">
                                     <input
                                         type="checkbox"
                                         .checked="${h}"
-                                        ?disabled="${c}"
+                                        ?disabled="${d}"
                                         @change="${() => this._toggleSelection(a.name)}"
-                                        title="${c ? "Cannot select the latest version" : "Select this snapshot"}"
+                                        title="${d ? "Cannot select the latest version" : "Select this snapshot"}"
                                         class="select-checkbox"
                                     />
                                 </uui-table-cell>
@@ -669,15 +712,15 @@ let n = class extends _(m) {
                                 <uui-table-cell>${this._formatDate(a.date)}</uui-table-cell>
                                 <uui-table-cell>${a.uploader.replace(/_/g, " ")}</uui-table-cell>
                                 <uui-table-cell>
-                                    ${this._renderStatus(a, d)}
+                                    ${this._renderStatus(a, c)}
                                 </uui-table-cell>
                                 <uui-table-cell>
                                     <div style="display: flex; gap: 8px;">
                                         <uui-button
                                             look="secondary"
                                             compact
-                                            ?disabled="${c}"
-                                            title="${c ? "This is the latest version" : "Compare with current file"}"
+                                            ?disabled="${d}"
+                                            title="${d ? "This is the latest version" : "Compare with current file"}"
                                             @click="${() => this._openComparison(a)}">
                                             <uui-icon name="icon-split"></uui-icon> Compare
                                         </uui-button>
@@ -692,8 +735,8 @@ let n = class extends _(m) {
                                             look="primary" 
                                             color="positive"
                                             compact
-                                            ?disabled="${e || this._isRestoring || c}"
-                                            title="${e ? "Cannot restore when only one version exists" : c ? "This is already the latest version" : "Restore this version"}"
+                                            ?disabled="${e || this._isRestoring || d}"
+                                            title="${e ? "Cannot restore when only one version exists" : d ? "This is already the latest version" : "Restore this version"}"
                                             @click="${() => this._restoreVersion(a)}">
                                             <uui-icon name="icon-refresh"></uui-icon> ${this._isRestoring ? "Restoring..." : "Restore"}
                                         </uui-button>
@@ -701,8 +744,8 @@ let n = class extends _(m) {
                                             look="secondary"
                                             color="danger"
                                             compact
-                                            ?disabled="${c || this._isDeleting}"
-                                            title="${c ? "Cannot delete the latest version" : "Delete this snapshot"}"
+                                            ?disabled="${d || this._isDeleting}"
+                                            title="${d ? "Cannot delete the latest version" : "Delete this snapshot"}"
                                             @click="${() => this._deleteSnapshot(a)}">
                                             <uui-icon name="icon-trash"></uui-icon>
                                         </uui-button>
@@ -1170,6 +1213,46 @@ n.styles = g`
             font-size: 1rem;
         }
 
+        /* Stats strip */
+        .stats-strip {
+            display: flex;
+            align-items: center;
+            gap: var(--uui-size-space-4);
+            padding: var(--uui-size-space-3) var(--uui-size-space-4);
+            margin-bottom: var(--uui-size-space-4);
+            background: var(--uui-color-surface-alt);
+            border: 1px solid var(--uui-color-border);
+            border-radius: var(--uui-border-radius);
+            flex-wrap: wrap;
+        }
+
+        .stats-strip-item {
+            display: flex;
+            align-items: center;
+            gap: var(--uui-size-space-2);
+        }
+
+        .stats-strip-item uui-icon {
+            color: var(--uui-color-primary);
+            font-size: 0.9rem;
+        }
+
+        .stats-strip-value {
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .stats-strip-label {
+            font-size: 0.8rem;
+            color: var(--uui-color-text-alt);
+        }
+
+        .stats-strip-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--uui-color-border);
+        }
+
         @media (max-width: 768px) {
             .preview-panel {
                 width: 100vw;
@@ -1193,55 +1276,55 @@ n.styles = g`
             }
         }
     `;
-r([
-  l()
+l([
+  u()
 ], n.prototype, "_versions", 2);
-r([
-  l()
+l([
+  u()
 ], n.prototype, "_loading", 2);
-r([
-  l()
+l([
+  u()
 ], n.prototype, "_mediaKey", 2);
-r([
-  l()
+l([
+  u()
 ], n.prototype, "_previewImageUrl", 2);
-r([
-  l()
+l([
+  u()
 ], n.prototype, "_previewImageName", 2);
-r([
-  l()
+l([
+  u()
 ], n.prototype, "_showPreview", 2);
-r([
-  l()
+l([
+  u()
 ], n.prototype, "_isRestoring", 2);
-r([
-  l()
+l([
+  u()
 ], n.prototype, "_currentPage", 2);
-r([
-  l()
+l([
+  u()
 ], n.prototype, "_showComparison", 2);
-r([
-  l()
+l([
+  u()
 ], n.prototype, "_comparisonSnapshot", 2);
-r([
-  l()
+l([
+  u()
 ], n.prototype, "_comparisonCurrent", 2);
-r([
-  l()
+l([
+  u()
 ], n.prototype, "_comparisonLoading", 2);
-r([
-  l()
+l([
+  u()
 ], n.prototype, "_comparisonMode", 2);
-r([
-  l()
+l([
+  u()
 ], n.prototype, "_sliderPosition", 2);
-r([
-  l()
+l([
+  u()
 ], n.prototype, "_selectedSnapshots", 2);
-r([
-  l()
+l([
+  u()
 ], n.prototype, "_isDeleting", 2);
-n = r([
+n = l([
   b("snapshot-viewer")
 ], n);
 export {

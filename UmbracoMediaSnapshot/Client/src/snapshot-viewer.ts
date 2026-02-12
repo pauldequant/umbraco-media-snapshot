@@ -822,6 +822,53 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
         `;
     }
 
+    /**
+     * Renders a compact summary stats strip for this media item's snapshots
+     */
+    private _renderStats() {
+        if (this._versions.length === 0) return '';
+
+        const totalSize = this._versions.reduce((sum, v) => sum + (v.size || 0), 0);
+        const dates = this._versions.map(v => new Date(v.date).getTime()).filter(t => !isNaN(t));
+        const oldestDate = dates.length > 0 ? new Date(Math.min(...dates)) : null;
+        const newestDate = dates.length > 0 ? new Date(Math.max(...dates)) : null;
+        const uniqueUploaders = new Set(this._versions.map(v => v.uploader).filter(Boolean));
+
+        return html`
+            <div class="stats-strip">
+                <div class="stats-strip-item">
+                    <uui-icon name="icon-documents"></uui-icon>
+                    <span class="stats-strip-value">${this._versions.length}</span>
+                    <span class="stats-strip-label">Snapshot${this._versions.length !== 1 ? 's' : ''}</span>
+                </div>
+                <div class="stats-strip-divider"></div>
+                <div class="stats-strip-item">
+                    <uui-icon name="icon-server"></uui-icon>
+                    <span class="stats-strip-value">${this._formatSize(totalSize)}</span>
+                    <span class="stats-strip-label">Total Size</span>
+                </div>
+                <div class="stats-strip-divider"></div>
+                <div class="stats-strip-item">
+                    <uui-icon name="icon-calendar"></uui-icon>
+                    <span class="stats-strip-value">${oldestDate ? this._formatDate(oldestDate.toISOString()) : '—'}</span>
+                    <span class="stats-strip-label">Oldest</span>
+                </div>
+                <div class="stats-strip-divider"></div>
+                <div class="stats-strip-item">
+                    <uui-icon name="icon-calendar"></uui-icon>
+                    <span class="stats-strip-value">${newestDate ? this._formatDate(newestDate.toISOString()) : '—'}</span>
+                    <span class="stats-strip-label">Latest</span>
+                </div>
+                <div class="stats-strip-divider"></div>
+                <div class="stats-strip-item">
+                    <uui-icon name="icon-users"></uui-icon>
+                    <span class="stats-strip-value">${uniqueUploaders.size}</span>
+                    <span class="stats-strip-label">Contributor${uniqueUploaders.size !== 1 ? 's' : ''}</span>
+                </div>
+            </div>
+        `;
+    }
+
     render() {
         if (this._loading) {
             return html`<div class="loader"><uui-loader></uui-loader> Fetching snapshots...</div>`;
@@ -845,6 +892,9 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
 
         return html`
             <div class="snapshot-container">
+
+                <!-- Summary stats for this media item -->
+                ${this._renderStats()}
 
                 <!-- Bulk action toolbar -->
                 ${hasSelection ? html`
@@ -1429,6 +1479,46 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
         .metadata-comparison h4 {
             margin: 0 0 var(--uui-size-space-3) 0;
             font-size: 1rem;
+        }
+
+        /* Stats strip */
+        .stats-strip {
+            display: flex;
+            align-items: center;
+            gap: var(--uui-size-space-4);
+            padding: var(--uui-size-space-3) var(--uui-size-space-4);
+            margin-bottom: var(--uui-size-space-4);
+            background: var(--uui-color-surface-alt);
+            border: 1px solid var(--uui-color-border);
+            border-radius: var(--uui-border-radius);
+            flex-wrap: wrap;
+        }
+
+        .stats-strip-item {
+            display: flex;
+            align-items: center;
+            gap: var(--uui-size-space-2);
+        }
+
+        .stats-strip-item uui-icon {
+            color: var(--uui-color-primary);
+            font-size: 0.9rem;
+        }
+
+        .stats-strip-value {
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .stats-strip-label {
+            font-size: 0.8rem;
+            color: var(--uui-color-text-alt);
+        }
+
+        .stats-strip-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--uui-color-border);
         }
 
         @media (max-width: 768px) {
