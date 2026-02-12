@@ -35,6 +35,11 @@
         private readonly ILogger<SnapshotBlobService> _logger;
 
         /// <summary>
+        /// Combined set of built-in and user-configured media type aliases
+        /// </summary>
+        private readonly FrozenSet<string> _effectiveMediaTypes;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="SnapshotBlobService"/> class.
         /// </summary>
         /// <param name="blobServiceClient">The blobServiceClient<see cref="BlobServiceClient"/></param>
@@ -51,7 +56,34 @@
             _mediaContainerName = configuration.GetValue<string>("Umbraco:Storage:AzureBlob:Media:ContainerName") ?? "umbraco";
             _settings = settings.Value;
             _logger = logger;
+
+            // Merge built-in types with any user-configured additional types
+            var combined = new HashSet<string>(BuiltInMediaTypes, StringComparer.OrdinalIgnoreCase);
+            if (_settings.AdditionalMediaTypes is { Count: > 0 })
+            {
+                foreach (var alias in _settings.AdditionalMediaTypes)
+                {
+                    if (!string.IsNullOrWhiteSpace(alias) && combined.Add(alias))
+                    {
+                        _logger.LogInformation("Registered additional media type for snapshotting: {Alias}", alias);
+                    }
+                }
+            }
+            _effectiveMediaTypes = combined.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
         }
+
+        /// <summary>
+        /// Built-in media type aliases that are always supported
+        /// </summary>
+        private static readonly string[] BuiltInMediaTypes =
+        [
+            "umbracoMediaArticle",
+            "umbracoMediaAudio",
+            "File",
+            "Image",
+            "umbracoMediaVectorGraphics",
+            "umbracoMediaVideo"
+        ];
 
         /// <inheritdoc />
 
@@ -82,18 +114,9 @@
 
         /// <summary>
         /// The TargetMediaTypes
+        /// Returns the combined set of built-in and user-configured media type aliases
         /// </summary>
-        public IReadOnlyCollection<string> TargetMediaTypes => TargetMediaTypesSet;
-
-        private static readonly FrozenSet<string> TargetMediaTypesSet = FrozenSet.ToFrozenSet(
-        [
-            "umbracoMediaArticle",
-            "umbracoMediaAudio",
-            "File",
-            "Image",
-            "umbracoMediaVectorGraphics",
-            "umbracoMediaVideo"
-        ]);
+        public IReadOnlyCollection<string> TargetMediaTypes => _effectiveMediaTypes;
 
         /// <inheritdoc />
 
@@ -103,7 +126,7 @@
         /// <param name="alias">The alias<see cref="string"/></param>
         /// <returns>The <see cref="bool"/></returns>
         public bool IsTargetMediaType(string alias)
-            => TargetMediaTypesSet.Contains(alias);
+            => _effectiveMediaTypes.Contains(alias);
 
         /// <inheritdoc />
 

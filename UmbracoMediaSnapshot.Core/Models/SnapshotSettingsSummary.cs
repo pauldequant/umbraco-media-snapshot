@@ -25,5 +25,11 @@
         /// Gets or sets the SAS token expiration in hours
         /// </summary>
         public int SasTokenExpirationHours { get; set; }
+
+        /// <summary>
+        /// Gets or sets the effective list of tracked media type aliases
+        /// (built-in + any user-configured additional types)
+        /// </summary>
+        public List<string> TrackedMediaTypes { get; set; } = [];
     }
 }

@@ -33,7 +33,8 @@ To customize behaviour, add this section to your appsettings.json:
     "MaxSnapshotsPerMedia": 10,
     "MaxSnapshotAgeDays": 365,
     "SasTokenExpirationHours": 1,
-    "EnableAutomaticCleanup": true
+    "EnableAutomaticCleanup": true,
+    "AdditionalMediaTypes": ["productImage", "brandAsset"]
   }
 }
 
@@ -43,3 +44,4 @@ To customize behaviour, add this section to your appsettings.json:
 - MaxSnapshotAgeDays: Delete snapshots older than X days (0 = never)
 - SasTokenExpirationHours: How long download links remain valid
 - EnableAutomaticCleanup: Auto-delete old snapshots based on above limits
+- AdditionalMediaTypes: Extra media type aliases to track (built-in types are always included)

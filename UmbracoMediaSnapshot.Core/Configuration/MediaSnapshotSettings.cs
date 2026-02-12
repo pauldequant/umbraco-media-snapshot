@@ -33,5 +33,11 @@
         /// Enable automatic cleanup of old snapshots (default: true)
         /// </summary>
         public bool EnableAutomaticCleanup { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets additional media type aliases to include in snapshot tracking.
+        /// The built-in types (Image, File, umbracoMediaArticle, etc.) are always included.
+        /// </summary>
+        public List<string> AdditionalMediaTypes { get; set; } = [];
     }
 }

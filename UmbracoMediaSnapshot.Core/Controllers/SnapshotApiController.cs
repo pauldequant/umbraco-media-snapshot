@@ -354,7 +354,7 @@
         }
 
         /// <summary>
-        /// The BuildSettingsSummary
+        /// Builds a settings summary from the current configuration
         /// </summary>
         /// <returns>The <see cref="SnapshotSettingsSummary"/></returns>
         private SnapshotSettingsSummary BuildSettingsSummary() => new()
@@ -362,7 +362,8 @@
             MaxSnapshotsPerMedia = _settings.MaxSnapshotsPerMedia,
             MaxSnapshotAgeDays = _settings.MaxSnapshotAgeDays,
             EnableAutomaticCleanup = _settings.EnableAutomaticCleanup,
-            SasTokenExpirationHours = _settings.SasTokenExpirationHours
+            SasTokenExpirationHours = _settings.SasTokenExpirationHours,
+            TrackedMediaTypes = [.. _blobService.TargetMediaTypes.OrderBy(t => t)]
         };
 
         /// <summary>

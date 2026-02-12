@@ -40,6 +40,9 @@
             builder.AddNotificationAsyncHandler<MediaSavingNotification, SnapshotMediaSavingHandler>();
             builder.AddNotificationAsyncHandler<MediaSavedNotification, SnapshotMediaSavedHandler>();
             builder.AddNotificationAsyncHandler<MediaDeletedNotification, SnapshotMediaDeletedHandler>();
+
+            // Ensure all configured media types have the fileVersionHistory property on startup
+            builder.AddNotificationAsyncHandler<UmbracoApplicationStartedNotification, EnsureSnapshotPropertyHandler>();
         }
     }
 }

@@ -1,14 +1,14 @@
 import { LitElement as d, html as t, css as p, state as c, customElement as m } from "@umbraco-cms/backoffice/external/lit";
-import { UmbElementMixin as h } from "@umbraco-cms/backoffice/element-api";
-import { UMB_AUTH_CONTEXT as g } from "@umbraco-cms/backoffice/auth";
+import { UmbElementMixin as g } from "@umbraco-cms/backoffice/element-api";
+import { UMB_AUTH_CONTEXT as h } from "@umbraco-cms/backoffice/auth";
 var v = Object.defineProperty, b = Object.getOwnPropertyDescriptor, l = (a, e, o, r) => {
   for (var i = r > 1 ? void 0 : r ? b(e, o) : e, n = a.length - 1, u; n >= 0; n--)
     (u = a[n]) && (i = (r ? u(e, o, i) : u(i)) || i);
   return r && i && v(e, o, i), i;
 };
-let s = class extends h(d) {
+let s = class extends g(d) {
   constructor() {
-    super(), this._stats = null, this._loading = !0, this._error = "", this.consumeContext(g, (a) => {
+    super(), this._stats = null, this._loading = !0, this._error = "", this.consumeContext(h, (a) => {
       this._authContext = a, this._fetchStats();
     });
   }
@@ -209,6 +209,14 @@ let s = class extends h(d) {
                         <div class="setting-item">
                             <span class="setting-label">SAS Token Expiration</span>
                             <span class="setting-value">${a.settings.sasTokenExpirationHours} hour${a.settings.sasTokenExpirationHours !== 1 ? "s" : ""}</span>
+                        </div>
+                        <div class="setting-item">
+                            <span class="setting-label">Tracked Media Types</span>
+                            <span class="setting-value setting-value-tags">
+                                ${a.settings.trackedMediaTypes.map((e) => t`
+                                    <uui-tag look="secondary">${e}</uui-tag>
+                                `)}
+                            </span>
                         </div>
                     </div>
                 </uui-box>
@@ -411,6 +419,13 @@ s.styles = p`
         .setting-value {
             font-size: 1.1rem;
             font-weight: 600;
+        }
+
+        .setting-value-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            font-size: 0.85rem;
         }
 
         @media (max-width: 768px) {

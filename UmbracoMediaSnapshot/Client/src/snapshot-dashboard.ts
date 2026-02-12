@@ -18,6 +18,7 @@ interface SettingsSummary {
     maxSnapshotAgeDays: number;
     enableAutomaticCleanup: boolean;
     sasTokenExpirationHours: number;
+    trackedMediaTypes: string[];
 }
 
 interface StorageStats {
@@ -288,6 +289,14 @@ export class SnapshotDashboardElement extends UmbElementMixin(LitElement) {
                             <span class="setting-label">SAS Token Expiration</span>
                             <span class="setting-value">${stats.settings.sasTokenExpirationHours} hour${stats.settings.sasTokenExpirationHours !== 1 ? 's' : ''}</span>
                         </div>
+                        <div class="setting-item">
+                            <span class="setting-label">Tracked Media Types</span>
+                            <span class="setting-value setting-value-tags">
+                                ${stats.settings.trackedMediaTypes.map(t => html`
+                                    <uui-tag look="primary">${t}</uui-tag>
+                                `)}
+                            </span>
+                        </div>
                     </div>
                 </uui-box>
             </div>
@@ -489,6 +498,13 @@ export class SnapshotDashboardElement extends UmbElementMixin(LitElement) {
         .setting-value {
             font-size: 1.1rem;
             font-weight: 600;
+        }
+
+        .setting-value-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            font-size: 0.85rem;
         }
 
         @media (max-width: 768px) {
