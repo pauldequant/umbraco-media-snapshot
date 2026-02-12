@@ -21,7 +21,7 @@
 		<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
 		<PackageProjectUrl>https://github.com/pauldequant/umbraco-media-snapshot</PackageProjectUrl>
 
-		<PackageVersion>1.3.6</PackageVersion>
+		<PackageVersion>2.0.0-alpha</PackageVersion>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -71,6 +71,7 @@
 		<TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
 		<PackageIcon>icon.png</PackageIcon>
 		<PackageReleaseNotes>Added automatic file restore and additional config options</PackageReleaseNotes>
+		<Version>$(VersionPrefix)</Version>
 	</PropertyGroup>
 
 	<!-- Custom Target to bundle the Core DLL into the NuGet package -->
