@@ -1,26 +1,29 @@
-import { LitElement as h, html as s, css as m, state as l, customElement as g } from "@umbraco-cms/backoffice/external/lit";
-import { UmbElementMixin as v } from "@umbraco-cms/backoffice/element-api";
-import { UMB_WORKSPACE_CONTEXT as f } from "@umbraco-cms/backoffice/workspace";
-import { UMB_AUTH_CONTEXT as _ } from "@umbraco-cms/backoffice/auth";
-import { UMB_NOTIFICATION_CONTEXT as b } from "@umbraco-cms/backoffice/notification";
-import { UMB_MODAL_MANAGER_CONTEXT as w, UMB_CONFIRM_MODAL as d } from "@umbraco-cms/backoffice/modal";
-var y = Object.defineProperty, x = Object.getOwnPropertyDescriptor, r = (e, i, a, t) => {
-  for (var o = t > 1 ? void 0 : t ? x(i, a) : i, u = e.length - 1, c; u >= 0; u--)
-    (c = e[u]) && (o = (t ? c(i, a, o) : c(o)) || o);
-  return t && o && y(i, a, o), o;
-};
-let n = class extends v(h) {
+import { LitElement as x, html as l, css as w, state as d, customElement as y } from "@umbraco-cms/backoffice/external/lit";
+import { UmbElementMixin as $ } from "@umbraco-cms/backoffice/element-api";
+import { UmbLocalizationController as k } from "@umbraco-cms/backoffice/localization-api";
+import { UMB_WORKSPACE_CONTEXT as z } from "@umbraco-cms/backoffice/workspace";
+import { UMB_AUTH_CONTEXT as C } from "@umbraco-cms/backoffice/auth";
+import { UMB_NOTIFICATION_CONTEXT as S } from "@umbraco-cms/backoffice/notification";
+import { UMB_MODAL_MANAGER_CONTEXT as P, UMB_CONFIRM_MODAL as g } from "@umbraco-cms/backoffice/modal";
+var N = Object.defineProperty, T = Object.getOwnPropertyDescriptor, b = (a) => {
+  throw TypeError(a);
+}, u = (a, s, o, r) => {
+  for (var n = r > 1 ? void 0 : r ? T(s, o) : s, h = a.length - 1, p; h >= 0; h--)
+    (p = a[h]) && (n = (r ? p(s, o, n) : p(n)) || n);
+  return r && n && N(s, o, n), n;
+}, _ = (a, s, o) => s.has(a) || b("Cannot " + o), D = (a, s, o) => (_(a, s, "read from private field"), o ? o.call(a) : s.get(a)), f = (a, s, o) => s.has(a) ? b("Cannot add the same private member more than once") : s instanceof WeakSet ? s.add(a) : s.set(a, o), t = (a, s, o) => (_(a, s, "access private method"), o), m, e, i;
+let c = class extends $(x) {
   constructor() {
-    super(), this._versions = [], this._loading = !0, this._mediaKey = "", this._previewImageUrl = null, this._previewImageName = "", this._showPreview = !1, this._isRestoring = !1, this._currentPage = 1, this._showComparison = !1, this._comparisonSnapshot = null, this._comparisonCurrent = null, this._comparisonLoading = !1, this._comparisonMode = "side-by-side", this._sliderPosition = 50, this._selectedSnapshots = /* @__PURE__ */ new Set(), this._isDeleting = !1, this._editingNoteName = null, this._editingNoteValue = "", this._savingNote = !1, this._totalCount = 0, this._totalPages = 1, this._totalSizeBytes = 0, this._oldestDate = null, this._newestDate = null, this._uniqueUploaderCount = 0, this._togglingPin = null, this._pageSize = 10, this.consumeContext(_, (e) => {
-      this._authContext = e;
-    }), this.consumeContext(b, (e) => {
-      this._notificationContext = e;
-    }), this.consumeContext(w, (e) => {
-      this._modalManagerContext = e;
-    }), this.consumeContext(f, (e) => {
-      const i = e;
-      i.unique && this.observe(i.unique, (a) => {
-        a && a !== this._mediaKey && (this._mediaKey = a.toString(), this._currentPage = 1, this._fetchVersions(this._mediaKey));
+    super(), f(this, e), f(this, m, new k(this)), this._versions = [], this._loading = !0, this._mediaKey = "", this._previewImageUrl = null, this._previewImageName = "", this._showPreview = !1, this._isRestoring = !1, this._currentPage = 1, this._showComparison = !1, this._comparisonSnapshot = null, this._comparisonCurrent = null, this._comparisonLoading = !1, this._comparisonMode = "side-by-side", this._sliderPosition = 50, this._selectedSnapshots = /* @__PURE__ */ new Set(), this._isDeleting = !1, this._editingNoteName = null, this._editingNoteValue = "", this._savingNote = !1, this._totalCount = 0, this._totalPages = 1, this._totalSizeBytes = 0, this._oldestDate = null, this._newestDate = null, this._uniqueUploaderCount = 0, this._togglingPin = null, this._pageSize = 10, this.consumeContext(C, (a) => {
+      this._authContext = a;
+    }), this.consumeContext(S, (a) => {
+      this._notificationContext = a;
+    }), this.consumeContext(P, (a) => {
+      this._modalManagerContext = a;
+    }), this.consumeContext(z, (a) => {
+      const s = a;
+      s.unique && this.observe(s.unique, (o) => {
+        o && o !== this._mediaKey && (this._mediaKey = o.toString(), this._currentPage = 1, this._fetchVersions(this._mediaKey));
       });
     });
   }
@@ -29,32 +32,32 @@ let n = class extends v(h) {
    * Umbraco 17 automatically injects Auth Bearer tokens into fetch 
    * requests starting with /umbraco/management/api/
    */
-  async _fetchVersions(e) {
+  async _fetchVersions(a) {
     this._loading = !0;
-    const i = await this._authContext?.getLatestToken();
-    if (!i) {
+    const s = await this._authContext?.getLatestToken();
+    if (!s) {
       console.error("No authentication token available."), this._notificationContext?.peek("danger", {
-        data: { headline: "Authentication Error", message: "No authentication token available." }
+        data: { headline: t(this, e, i).call(this, "authError"), message: t(this, e, i).call(this, "noAuthToken") }
       }), this._loading = !1;
       return;
     }
     try {
-      const a = `/umbraco/management/api/v1/snapshot/versions/${e}?page=${this._currentPage}&pageSize=${this._pageSize}`, t = await fetch(a, {
+      const o = `/umbraco/management/api/v1/snapshot/versions/${a}?page=${this._currentPage}&pageSize=${this._pageSize}`, r = await fetch(o, {
         method: "GET",
         headers: {
-          Authorization: `Bearer ${i}`,
+          Authorization: `Bearer ${s}`,
           "Content-Type": "application/json"
         }
       });
-      if (t.ok) {
-        const o = await t.json();
-        this._versions = o.items, this._totalCount = o.totalCount, this._totalPages = o.totalPages, this._totalSizeBytes = o.totalSizeBytes, this._oldestDate = o.oldestDate, this._newestDate = o.newestDate, this._uniqueUploaderCount = o.uniqueUploaderCount, this._selectedSnapshots = /* @__PURE__ */ new Set();
-      } else t.status === 401 && (console.error("Unauthorized: The session may have expired."), this._notificationContext?.peek("danger", {
-        data: { headline: "Unauthorized", message: "The session may have expired." }
+      if (r.ok) {
+        const n = await r.json();
+        this._versions = n.items, this._totalCount = n.totalCount, this._totalPages = n.totalPages, this._totalSizeBytes = n.totalSizeBytes, this._oldestDate = n.oldestDate, this._newestDate = n.newestDate, this._uniqueUploaderCount = n.uniqueUploaderCount, this._selectedSnapshots = /* @__PURE__ */ new Set();
+      } else r.status === 401 && (console.error("Unauthorized: The session may have expired."), this._notificationContext?.peek("danger", {
+        data: { headline: t(this, e, i).call(this, "unauthorized"), message: t(this, e, i).call(this, "sessionExpired") }
       }));
-    } catch (a) {
-      console.error("Failed to fetch snapshots:", a), this._notificationContext?.peek("danger", {
-        data: { headline: "Error", message: "Failed to fetch snapshots." }
+    } catch (o) {
+      console.error("Failed to fetch snapshots:", o), this._notificationContext?.peek("danger", {
+        data: { headline: t(this, e, i).call(this, "error"), message: t(this, e, i).call(this, "failedToFetchSnapshots") }
       });
     } finally {
       this._loading = !1;
@@ -64,30 +67,30 @@ let n = class extends v(h) {
    * Fetches the current (live) media file metadata and SAS URL
    */
   async _fetchCurrentMedia() {
-    const e = await this._authContext?.getLatestToken();
-    if (!e) return null;
+    const a = await this._authContext?.getLatestToken();
+    if (!a) return null;
     try {
-      const i = `/umbraco/management/api/v1/snapshot/current/${this._mediaKey}`, a = await fetch(i, {
+      const s = `/umbraco/management/api/v1/snapshot/current/${this._mediaKey}`, o = await fetch(s, {
         method: "GET",
         headers: {
-          Authorization: `Bearer ${e}`,
+          Authorization: `Bearer ${a}`,
           "Content-Type": "application/json"
         }
       });
-      if (a.ok)
-        return await a.json();
-    } catch (i) {
-      console.error("Failed to fetch current media:", i);
+      if (o.ok)
+        return await o.json();
+    } catch (s) {
+      console.error("Failed to fetch current media:", s);
     }
     return null;
   }
   /**
    * Opens the comparison panel for a specific snapshot version
    */
-  async _openComparison(e) {
-    this._comparisonLoading = !0, this._comparisonSnapshot = e, this._showComparison = !0, this._sliderPosition = 50;
-    const i = await this._fetchCurrentMedia();
-    this._comparisonCurrent = i, this._comparisonLoading = !1;
+  async _openComparison(a) {
+    this._comparisonLoading = !0, this._comparisonSnapshot = a, this._showComparison = !0, this._sliderPosition = 50;
+    const s = await this._fetchCurrentMedia();
+    this._comparisonCurrent = s, this._comparisonLoading = !1;
   }
   /**
    * Closes the comparison panel
@@ -104,42 +107,42 @@ let n = class extends v(h) {
   /**
    * Handles the slider input for overlay comparison
    */
-  _onSliderInput(e) {
-    const i = e.target;
-    this._sliderPosition = parseInt(i.value, 10);
+  _onSliderInput(a) {
+    const s = a.target;
+    this._sliderPosition = parseInt(s.value, 10);
   }
   /**
    * Handles page change from the pagination component
    */
-  _onPageChange(e) {
-    const i = e.target;
-    this._currentPage = i.current, this._fetchVersions(this._mediaKey);
+  _onPageChange(a) {
+    const s = a.target;
+    this._currentPage = s.current, this._fetchVersions(this._mediaKey);
   }
   /**
    * Determines the previewable file type from a filename
    */
-  _getFileType(e) {
-    const i = e.substring(e.lastIndexOf(".")).toLowerCase();
-    return [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"].includes(i) ? "image" : i === ".svg" ? "svg" : i === ".pdf" ? "pdf" : [".mp4", ".webm", ".ogg", ".mov"].includes(i) ? "video" : [".mp3", ".wav", ".ogg", ".aac", ".flac", ".m4a"].includes(i) ? "audio" : null;
+  _getFileType(a) {
+    const s = a.substring(a.lastIndexOf(".")).toLowerCase();
+    return [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"].includes(s) ? "image" : s === ".svg" ? "svg" : s === ".pdf" ? "pdf" : [".mp4", ".webm", ".ogg", ".mov"].includes(s) ? "video" : [".mp3", ".wav", ".ogg", ".aac", ".flac", ".m4a"].includes(s) ? "audio" : null;
   }
   /**
    * Checks if a filename is an image (including SVG) for comparison support
    */
-  _isImage(e) {
-    const i = this._getFileType(e);
-    return i === "image" || i === "svg";
+  _isImage(a) {
+    const s = this._getFileType(a);
+    return s === "image" || s === "svg";
   }
   /**
    * Whether a file can be previewed in the side panel
    */
-  _isPreviewable(e) {
-    return this._getFileType(e) !== null;
+  _isPreviewable(a) {
+    return this._getFileType(a) !== null;
   }
   /**
    * Returns the appropriate icon name for a file type
    */
-  _getFileIcon(e) {
-    switch (this._getFileType(e)) {
+  _getFileIcon(a) {
+    switch (this._getFileType(a)) {
       case "image":
       case "svg":
         return "icon-picture";
@@ -156,8 +159,8 @@ let n = class extends v(h) {
   /**
    * Opens the preview panel for any supported file type
    */
-  _openPreview(e) {
-    this._isPreviewable(e.name) && (this._previewImageUrl = e.url, this._previewImageName = e.name, this._showPreview = !0);
+  _openPreview(a) {
+    this._isPreviewable(a.name) && (this._previewImageUrl = a.url, this._previewImageName = a.name, this._showPreview = !0);
   }
   /**
    * Closes the preview panel
@@ -172,15 +175,15 @@ let n = class extends v(h) {
     switch (this._getFileType(this._previewImageName)) {
       case "image":
       case "svg":
-        return "Image Preview";
+        return t(this, e, i).call(this, "imagePreview");
       case "video":
-        return "Video Preview";
+        return t(this, e, i).call(this, "videoPreview");
       case "audio":
-        return "Audio Preview";
+        return t(this, e, i).call(this, "audioPreview");
       case "pdf":
-        return "PDF Preview";
+        return t(this, e, i).call(this, "pdfPreview");
       default:
-        return "File Preview";
+        return t(this, e, i).call(this, "filePreview");
     }
   }
   /**
@@ -188,38 +191,38 @@ let n = class extends v(h) {
    */
   _renderPreviewContent() {
     if (!this._previewImageUrl)
-      return s`<uui-loader></uui-loader>`;
+      return l`<uui-loader></uui-loader>`;
     switch (this._getFileType(this._previewImageName)) {
       case "image":
       case "svg":
-        return s`
+        return l`
                     <img
                         src="${this._previewImageUrl}"
                         alt="${this._previewImageName}"
                         @error="${() => {
           this._notificationContext?.peek("warning", {
-            data: { headline: "Preview Error", message: "Unable to load image preview" }
+            data: { headline: t(this, e, i).call(this, "previewError"), message: t(this, e, i).call(this, "unableToLoadImagePreview") }
           });
         }}"
                     />
                 `;
       case "video":
-        return s`
+        return l`
                     <video
                         controls
                         preload="metadata"
                         class="preview-video"
                         @error="${() => {
           this._notificationContext?.peek("warning", {
-            data: { headline: "Preview Error", message: "Unable to load video preview" }
+            data: { headline: t(this, e, i).call(this, "previewError"), message: t(this, e, i).call(this, "unableToLoadVideoPreview") }
           });
         }}">
                         <source src="${this._previewImageUrl}" />
-                        Your browser does not support video playback.
+                        ${t(this, e, i).call(this, "videoNotSupported")}
                     </video>
                 `;
       case "audio":
-        return s`
+        return l`
                     <div class="preview-audio-wrapper">
                         <uui-icon name="icon-sound-waves" class="preview-audio-icon"></uui-icon>
                         <audio
@@ -228,32 +231,32 @@ let n = class extends v(h) {
                             class="preview-audio"
                             @error="${() => {
           this._notificationContext?.peek("warning", {
-            data: { headline: "Preview Error", message: "Unable to load audio preview" }
+            data: { headline: t(this, e, i).call(this, "previewError"), message: t(this, e, i).call(this, "unableToLoadAudioPreview") }
           });
         }}">
                             <source src="${this._previewImageUrl}" />
-                            Your browser does not support audio playback.
+                            ${t(this, e, i).call(this, "audioNotSupported")}
                         </audio>
                     </div>
                 `;
       case "pdf":
-        return s`
+        return l`
                     <iframe
                         src="${this._previewImageUrl}"
                         class="preview-pdf"
-                        title="PDF Preview: ${this._previewImageName}"
+                        title="${t(this, e, i).call(this, "pdfPreview")}: ${this._previewImageName}"
                         @error="${() => {
           this._notificationContext?.peek("warning", {
-            data: { headline: "Preview Error", message: "Unable to load PDF preview" }
+            data: { headline: t(this, e, i).call(this, "previewError"), message: t(this, e, i).call(this, "unableToLoadPdfPreview") }
           });
         }}">
                     </iframe>
                 `;
       default:
-        return s`
+        return l`
                     <div class="preview-unsupported">
                         <uui-icon name="icon-document"></uui-icon>
-                        <p>Preview not available for this file type.</p>
+                        <p>${t(this, e, i).call(this, "previewNotAvailable")}</p>
                     </div>
                 `;
     }
@@ -262,23 +265,23 @@ let n = class extends v(h) {
   /**
    * Toggles a single snapshot's selection state
    */
-  _toggleSelection(e) {
-    const i = new Set(this._selectedSnapshots);
-    i.has(e) ? i.delete(e) : i.add(e), this._selectedSnapshots = i;
+  _toggleSelection(a) {
+    const s = new Set(this._selectedSnapshots);
+    s.has(a) ? s.delete(a) : s.add(a), this._selectedSnapshots = s;
   }
   /**
    * Toggles select-all for the current page (excluding the latest version at index 0)
    */
   _toggleSelectAll() {
-    const e = (this._currentPage - 1) * this._pageSize, i = this._versions.filter((o, u) => e + u !== 0).map((o) => o.name), a = i.every((o) => this._selectedSnapshots.has(o)), t = new Set(this._selectedSnapshots);
-    a ? i.forEach((o) => t.delete(o)) : i.forEach((o) => t.add(o)), this._selectedSnapshots = t;
+    const a = (this._currentPage - 1) * this._pageSize, s = this._versions.filter((n, h) => a + h !== 0).map((n) => n.name), o = s.every((n) => this._selectedSnapshots.has(n)), r = new Set(this._selectedSnapshots);
+    o ? s.forEach((n) => r.delete(n)) : s.forEach((n) => r.add(n)), this._selectedSnapshots = r;
   }
   /**
    * Whether all selectable items on the current page are selected
    */
   get _allPageSelected() {
-    const e = (this._currentPage - 1) * this._pageSize, i = this._versions.filter((a, t) => e + t !== 0);
-    return i.length > 0 && i.every((a) => this._selectedSnapshots.has(a.name));
+    const a = (this._currentPage - 1) * this._pageSize, s = this._versions.filter((o, r) => a + r !== 0);
+    return s.length > 0 && s.every((o) => this._selectedSnapshots.has(o.name));
   }
   /**
    * Clears all selections
@@ -290,71 +293,71 @@ let n = class extends v(h) {
   /**
    * Deletes a single snapshot after confirmation
    */
-  async _deleteSnapshot(e) {
+  async _deleteSnapshot(a) {
     if (this._isDeleting) return;
     if (!this._modalManagerContext) {
       console.error("Modal manager context not available");
       return;
     }
-    const i = this._modalManagerContext.open(this, d, {
+    const s = this._modalManagerContext.open(this, g, {
       data: {
-        headline: "Delete Snapshot",
-        content: s`
-                    <p>Are you sure you want to permanently delete <strong>"${e.name}"</strong>?</p>
+        headline: t(this, e, i).call(this, "deleteSnapshotHeadline"),
+        content: l`
+                    <p>${t(this, e, i).call(this, "areYouSureDelete")} <strong>"${a.name}"</strong>?</p>
                     <uui-box>
                         <p style="margin: 0;">
                             <uui-icon name="icon-alert"></uui-icon>
-                            <strong>Warning:</strong> This action cannot be undone. The snapshot will be permanently removed from storage.
+                            <strong>${t(this, e, i).call(this, "warning")}:</strong> ${t(this, e, i).call(this, "deleteWarning")}
                         </p>
                     </uui-box>
                 `,
         color: "danger",
-        confirmLabel: "Delete"
+        confirmLabel: t(this, e, i).call(this, "delete")
       }
     });
     try {
-      await i.onSubmit();
+      await s.onSubmit();
     } catch {
       return;
     }
     this._isDeleting = !0;
-    const a = await this._authContext?.getLatestToken();
-    if (!a) {
+    const o = await this._authContext?.getLatestToken();
+    if (!o) {
       this._notificationContext?.peek("danger", {
-        data: { headline: "Authentication Error", message: "No authentication token available." }
+        data: { headline: t(this, e, i).call(this, "authError"), message: t(this, e, i).call(this, "noAuthToken") }
       }), this._isDeleting = !1;
       return;
     }
     try {
-      const t = await fetch("/umbraco/management/api/v1/snapshot/delete", {
+      const r = await fetch("/umbraco/management/api/v1/snapshot/delete", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${a}`,
+          Authorization: `Bearer ${o}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
           mediaKey: this._mediaKey,
-          snapshotName: e.name
+          snapshotName: a.name
         })
       });
-      if (t.ok) {
-        const o = await t.json();
+      if (r.ok) {
+        const n = await r.json();
         this._notificationContext?.peek("positive", {
-          data: { headline: "Snapshot Deleted", message: o.message }
+          data: { headline: t(this, e, i).call(this, "snapshotDeleted"), message: n.message }
         }), await this._fetchVersions(this._mediaKey);
-      } else if (t.status === 401)
+      } else if (r.status === 401)
         this._notificationContext?.peek("danger", {
-          data: { headline: "Unauthorized", message: "Your session may have expired. Please refresh the page." }
+          data: { headline: t(this, e, i).call(this, "unauthorized"), message: t(this, e, i).call(this, "sessionExpired") }
         });
       else {
-        const o = await t.json();
+        const n = await r.json();
         this._notificationContext?.peek("danger", {
-          data: { headline: "Delete Failed", message: o.detail || "Unknown error" }
+          data: { headline: t(this, e, i).call(this, "deleteFailed"), message: n.detail || t(this, e, i).call(this, "unknownError") }
         });
       }
-    } catch (t) {
-      console.error("Failed to delete snapshot:", t), this._notificationContext?.peek("danger", {
-        data: { headline: "Error", message: "An error occurred while deleting the snapshot." }
+    } catch (r) {
+      console.error("Failed to delete snapshot:", r), this._notificationContext?.peek("danger", {
+        data: { headline: t(this, e, i).call(this, "error"), message: t(this, e, i).call(this, "errorDeletingSnapshot") }
       });
     } finally {
       this._isDeleting = !1;
@@ -369,40 +372,40 @@ let n = class extends v(h) {
       console.error("Modal manager context not available");
       return;
     }
-    const e = this._selectedSnapshots.size, i = this._modalManagerContext.open(this, d, {
+    const a = this._selectedSnapshots.size, s = this._modalManagerContext.open(this, g, {
       data: {
-        headline: "Delete Selected Snapshots",
-        content: s`
-                    <p>Are you sure you want to permanently delete <strong>${e} snapshot${e > 1 ? "s" : ""}</strong>?</p>
+        headline: t(this, e, i).call(this, "deleteSelectedHeadline"),
+        content: l`
+                    <p>${t(this, e, i).call(this, "areYouSureDelete")} <strong>${a} ${a > 1 ? t(this, e, i).call(this, "snapshots") : t(this, e, i).call(this, "snapshot")}</strong>?</p>
                     <uui-box>
                         <p style="margin: 0;">
                             <uui-icon name="icon-alert"></uui-icon>
-                            <strong>Warning:</strong> This action cannot be undone. All selected snapshots will be permanently removed from storage.
+                            <strong>${t(this, e, i).call(this, "warning")}:</strong> ${t(this, e, i).call(this, "deleteSelectedWarning")}
                         </p>
                     </uui-box>
                 `,
         color: "danger",
-        confirmLabel: `Delete ${e} Snapshot${e > 1 ? "s" : ""}`
+        confirmLabel: `${t(this, e, i).call(this, "delete")} ${a} ${a > 1 ? t(this, e, i).call(this, "snapshots") : t(this, e, i).call(this, "snapshot")}`
       }
     });
     try {
-      await i.onSubmit();
+      await s.onSubmit();
     } catch {
       return;
     }
     this._isDeleting = !0;
-    const a = await this._authContext?.getLatestToken();
-    if (!a) {
+    const o = await this._authContext?.getLatestToken();
+    if (!o) {
       this._notificationContext?.peek("danger", {
-        data: { headline: "Authentication Error", message: "No authentication token available." }
+        data: { headline: t(this, e, i).call(this, "authError"), message: t(this, e, i).call(this, "noAuthToken") }
       }), this._isDeleting = !1;
       return;
     }
     try {
-      const t = await fetch("/umbraco/management/api/v1/snapshot/delete-bulk", {
+      const r = await fetch("/umbraco/management/api/v1/snapshot/delete-bulk", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${a}`,
+          Authorization: `Bearer ${o}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
@@ -410,24 +413,24 @@ let n = class extends v(h) {
           snapshotNames: Array.from(this._selectedSnapshots)
         })
       });
-      if (t.ok) {
-        const o = await t.json();
+      if (r.ok) {
+        const n = await r.json();
         this._notificationContext?.peek("positive", {
-          data: { headline: "Snapshots Deleted", message: o.message }
+          data: { headline: t(this, e, i).call(this, "snapshotsDeleted"), message: n.message }
         }), await this._fetchVersions(this._mediaKey);
-      } else if (t.status === 401)
+      } else if (r.status === 401)
         this._notificationContext?.peek("danger", {
-          data: { headline: "Unauthorized", message: "Your session may have expired. Please refresh the page." }
+          data: { headline: t(this, e, i).call(this, "unauthorized"), message: t(this, e, i).call(this, "sessionExpired") }
         });
       else {
-        const o = await t.json();
+        const n = await r.json();
         this._notificationContext?.peek("danger", {
-          data: { headline: "Bulk Delete Failed", message: o.detail || "Unknown error" }
+          data: { headline: t(this, e, i).call(this, "bulkDeleteFailed"), message: n.detail || t(this, e, i).call(this, "unknownError") }
         });
       }
-    } catch (t) {
-      console.error("Failed to bulk delete snapshots:", t), this._notificationContext?.peek("danger", {
-        data: { headline: "Error", message: "An error occurred while deleting snapshots." }
+    } catch (r) {
+      console.error("Failed to bulk delete snapshots:", r), this._notificationContext?.peek("danger", {
+        data: { headline: t(this, e, i).call(this, "error"), message: t(this, e, i).call(this, "errorDeletingSnapshots") }
       });
     } finally {
       this._isDeleting = !1;
@@ -436,7 +439,7 @@ let n = class extends v(h) {
   /**
    * Restores a specific snapshot version as the current file
    */
-  async _restoreVersion(e) {
+  async _restoreVersion(a) {
     if (this._isRestoring) {
       console.warn("Restore already in progress");
       return;
@@ -445,84 +448,84 @@ let n = class extends v(h) {
       console.error("Modal manager context not available");
       return;
     }
-    const i = this._modalManagerContext.open(this, d, {
+    const s = this._modalManagerContext.open(this, g, {
       data: {
-        headline: "Restore File Version",
-        content: s`
-                        <p>Are you sure you want to restore <strong>"${e.name}"</strong>?</p>
-                        <p>This will replace the current file and create a new snapshot.</p>
+        headline: t(this, e, i).call(this, "restoreHeadline"),
+        content: l`
+                        <p>${t(this, e, i).call(this, "areYouSureRestore")} <strong>"${a.name}"</strong>?</p>
+                        <p>${t(this, e, i).call(this, "restoreDescription")}</p>
                         <uui-box>
                             <p style="margin: 0;">
                                 <uui-icon name="icon-alert"></uui-icon>
-                                <strong>Warning:</strong> This action cannot be undone.
+                                <strong>${t(this, e, i).call(this, "warning")}:</strong> ${t(this, e, i).call(this, "restoreWarning")}
                             </p>
                         </uui-box>
                     `,
         color: "danger",
-        confirmLabel: "Restore"
+        confirmLabel: t(this, e, i).call(this, "restore")
       }
     });
     try {
-      await i.onSubmit();
+      await s.onSubmit();
     } catch {
       return;
     }
     this._isRestoring = !0;
-    const a = await this._authContext?.getLatestToken();
-    if (!a) {
+    const o = await this._authContext?.getLatestToken();
+    if (!o) {
       this._notificationContext?.peek("danger", {
-        data: { headline: "Authentication Error", message: "No authentication token available." }
+        data: { headline: t(this, e, i).call(this, "authError"), message: t(this, e, i).call(this, "noAuthToken") }
       }), this._isRestoring = !1;
       return;
     }
     try {
-      const o = await fetch("/umbraco/management/api/v1/snapshot/restore", {
+      const n = await fetch("/umbraco/management/api/v1/snapshot/restore", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${a}`,
+          Authorization: `Bearer ${o}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
           mediaKey: this._mediaKey,
-          snapshotName: e.name
+          snapshotName: a.name
         })
       });
-      if (o.ok) {
-        const u = await o.json();
+      if (n.ok) {
+        const h = await n.json();
         this._notificationContext?.peek("positive", {
           data: {
-            headline: "Snapshot Restored",
-            message: u.message
+            headline: t(this, e, i).call(this, "snapshotRestored"),
+            message: h.message
           }
         }), await this._fetchVersions(this._mediaKey);
-      } else if (o.status === 409)
+      } else if (n.status === 409)
         this._notificationContext?.peek("warning", {
           data: {
-            headline: "Restore in Progress",
-            message: "Another restore is already running for this media item. Please wait and try again."
+            headline: t(this, e, i).call(this, "restoreInProgress"),
+            message: t(this, e, i).call(this, "restoreInProgressMessage")
           }
         });
-      else if (o.status === 401)
+      else if (n.status === 401)
         this._notificationContext?.peek("danger", {
           data: {
-            headline: "Unauthorized",
-            message: "Your session may have expired. Please refresh the page."
+            headline: t(this, e, i).call(this, "unauthorized"),
+            message: t(this, e, i).call(this, "sessionExpired")
           }
         });
       else {
-        const u = await o.json();
+        const h = await n.json();
         this._notificationContext?.peek("danger", {
           data: {
-            headline: "Restore Failed",
-            message: u.detail || "Unknown error"
+            headline: t(this, e, i).call(this, "restoreFailed"),
+            message: h.detail || t(this, e, i).call(this, "unknownError")
           }
         });
       }
-    } catch (t) {
-      console.error("Failed to restore snapshot:", t), this._notificationContext?.peek("danger", {
+    } catch (r) {
+      console.error("Failed to restore snapshot:", r), this._notificationContext?.peek("danger", {
         data: {
-          headline: "Error",
-          message: "An error occurred while restoring the snapshot. Please try again."
+          headline: t(this, e, i).call(this, "error"),
+          message: t(this, e, i).call(this, "errorRestoringSnapshot")
         }
       });
     } finally {
@@ -532,41 +535,41 @@ let n = class extends v(h) {
   /**
    * Formats a byte count into a human-readable size string
    */
-  _formatSize(e) {
-    if (e === 0) return "0 B";
-    const i = ["B", "KB", "MB", "GB"], a = Math.floor(Math.log(e) / Math.log(1024));
-    return (e / Math.pow(1024, a)).toFixed(1) + " " + i[a];
+  _formatSize(a) {
+    if (a === 0) return "0 B";
+    const s = ["B", "KB", "MB", "GB"], o = Math.floor(Math.log(a) / Math.log(1024));
+    return (a / Math.pow(1024, o)).toFixed(1) + " " + s[o];
   }
   /**
    * Renders a compact inline status badge for a snapshot version
    */
-  _renderStatus(e, i) {
-    const a = [];
-    return e.isPinned && a.push(s`<uui-tag class="status-badge" look="primary" color="warning">Pinned</uui-tag>`), e.isRestored && a.push(s`<uui-tag class="status-badge" look="primary" color="positive">Restored</uui-tag>`), i === 0 && a.push(s`<uui-tag class="status-badge" look="primary" color="default">Latest</uui-tag>`), a;
+  _renderStatus(a, s) {
+    const o = [];
+    return a.isPinned && o.push(l`<uui-tag class="status-badge" look="primary" color="warning">${t(this, e, i).call(this, "pinned")}</uui-tag>`), a.isRestored && o.push(l`<uui-tag class="status-badge" look="primary" color="positive">${t(this, e, i).call(this, "restored")}</uui-tag>`), s === 0 && o.push(l`<uui-tag class="status-badge" look="primary" color="default">${t(this, e, i).call(this, "latest")}</uui-tag>`), o;
   }
   /**
    * Renders the comparison panel content
    */
   _renderComparison() {
     if (!this._showComparison) return "";
-    const e = this._comparisonSnapshot, i = this._comparisonCurrent, a = e && i && this._isImage(e.name) && this._isImage(i.name);
-    return s`
+    const a = this._comparisonSnapshot, s = this._comparisonCurrent, o = a && s && this._isImage(a.name) && this._isImage(s.name);
+    return l`
             <div class="preview-overlay" @click="${this._closeComparison}"></div>
             <div class="comparison-panel">
                 <div class="preview-header">
                     <h3>
                         <uui-icon name="icon-split"></uui-icon>
-                        Compare Versions
+                        ${t(this, e, i).call(this, "compareVersions")}
                     </h3>
                     <div style="display: flex; gap: 8px; align-items: center;">
-                        ${a ? s`
+                        ${o ? l`
                             <uui-button
                                 look="secondary"
                                 compact
                                 @click="${this._toggleComparisonMode}"
-                                title="Toggle comparison mode">
+                                title="${t(this, e, i).call(this, "toggleComparisonMode")}">
                                 <uui-icon name="${this._comparisonMode === "side-by-side" ? "icon-layers-alt" : "icon-split"}"></uui-icon>
-                                ${this._comparisonMode === "side-by-side" ? "Slider" : "Side-by-Side"}
+                                ${this._comparisonMode === "side-by-side" ? t(this, e, i).call(this, "slider") : t(this, e, i).call(this, "sideBySide")}
                             </uui-button>
                         ` : ""}
                         <uui-button
@@ -578,7 +581,7 @@ let n = class extends v(h) {
                     </div>
                 </div>
                 <div class="comparison-content">
-                    ${this._comparisonLoading ? s`<div class="loader"><uui-loader></uui-loader> Loading current file...</div>` : i ? a ? this._renderImageComparison(i, e) : this._renderMetadataComparison(i, e) : s`<uui-box><p>Unable to load the current media file for comparison.</p></uui-box>`}
+                    ${this._comparisonLoading ? l`<div class="loader"><uui-loader></uui-loader> ${t(this, e, i).call(this, "loadingCurrentFile")}</div>` : s ? o ? this._renderImageComparison(s, a) : this._renderMetadataComparison(s, a) : l`<uui-box><p>${t(this, e, i).call(this, "unableToLoadCurrent")}</p></uui-box>`}
                 </div>
             </div>
         `;
@@ -586,13 +589,13 @@ let n = class extends v(h) {
   /**
    * Renders a side-by-side or slider image comparison
    */
-  _renderImageComparison(e, i) {
-    return this._comparisonMode === "slider" ? s`
+  _renderImageComparison(a, s) {
+    return this._comparisonMode === "slider" ? l`
                 <div class="slider-comparison">
                     <div class="slider-container">
-                        <img class="slider-img-under" src="${e.url}" alt="Current" />
+                        <img class="slider-img-under" src="${a.url}" alt="${t(this, e, i).call(this, "current")}" />
                         <div class="slider-img-over" style="width: ${this._sliderPosition}%;">
-                            <img src="${i.url}" alt="Snapshot" />
+                            <img src="${s.url}" alt="${t(this, e, i).call(this, "snapshot")}" />
                         </div>
                         <div class="slider-handle" style="left: ${this._sliderPosition}%;">
                             <div class="slider-handle-line"></div>
@@ -607,79 +610,79 @@ let n = class extends v(h) {
                         />
                     </div>
                     <div class="slider-labels">
-                        <span><uui-tag look="primary" color="default">Snapshot</uui-tag> ${i.name}</span>
-                        <span><uui-tag look="primary" color="positive">Current</uui-tag> ${e.name}</span>
+                        <span><uui-tag look="primary" color="default">${t(this, e, i).call(this, "snapshot")}</uui-tag> ${s.name}</span>
+                        <span><uui-tag look="primary" color="positive">${t(this, e, i).call(this, "current")}</uui-tag> ${a.name}</span>
                     </div>
                 </div>
-                ${this._renderMetadataComparison(e, i)}
-            ` : s`
+                ${this._renderMetadataComparison(a, s)}
+            ` : l`
             <div class="side-by-side">
                 <div class="compare-column">
                     <div class="compare-label">
-                        <uui-tag look="primary" color="default">Snapshot</uui-tag>
-                        <span class="compare-filename">${i.name}</span>
+                        <uui-tag look="primary" color="default">${t(this, e, i).call(this, "snapshot")}</uui-tag>
+                        <span class="compare-filename">${s.name}</span>
                     </div>
                     <div class="compare-image-container">
-                        <img src="${i.url}" alt="${i.name}" />
+                        <img src="${s.url}" alt="${s.name}" />
                     </div>
                 </div>
                 <div class="compare-divider"></div>
                 <div class="compare-column">
                     <div class="compare-label">
-                        <uui-tag look="primary" color="positive">Current</uui-tag>
-                        <span class="compare-filename">${e.name}</span>
+                        <uui-tag look="primary" color="positive">${t(this, e, i).call(this, "current")}</uui-tag>
+                        <span class="compare-filename">${a.name}</span>
                     </div>
                     <div class="compare-image-container">
-                        <img src="${e.url}" alt="${e.name}" />
+                        <img src="${a.url}" alt="${a.name}" />
                     </div>
                 </div>
             </div>
-            ${this._renderMetadataComparison(e, i)}
+            ${this._renderMetadataComparison(a, s)}
         `;
   }
   /**
    * Renders a metadata diff table comparing the snapshot and current file
    */
-  _renderMetadataComparison(e, i) {
-    const a = e.size - i.size, t = a > 0 ? `+${this._formatSize(a)}` : a < 0 ? `-${this._formatSize(Math.abs(a))}` : "No change";
-    return s`
+  _renderMetadataComparison(a, s) {
+    const o = a.size - s.size, r = o > 0 ? `+${this._formatSize(o)}` : o < 0 ? `-${this._formatSize(Math.abs(o))}` : t(this, e, i).call(this, "noChange");
+    return l`
             <div class="metadata-comparison">
-                <h4>File Details</h4>
+                <h4>${t(this, e, i).call(this, "fileDetails")}</h4>
                 <uui-table>
                     <uui-table-head>
-                        <uui-table-head-cell>Property</uui-table-head-cell>
-                        <uui-table-head-cell>Snapshot</uui-table-head-cell>
-                        <uui-table-head-cell>Current</uui-table-head-cell>
-                        <uui-table-head-cell>Difference</uui-table-head-cell>
+                        <uui-table-head-cell>${t(this, e, i).call(this, "property")}</uui-table-head-cell>
+                        <uui-table-head-cell>${t(this, e, i).call(this, "snapshot")}</uui-table-head-cell>
+                        <uui-table-head-cell>${t(this, e, i).call(this, "current")}</uui-table-head-cell>
+                        <uui-table-head-cell>${t(this, e, i).call(this, "difference")}</uui-table-head-cell>
                     </uui-table-head>
                     <uui-table-row>
-                        <uui-table-cell><strong>Filename</strong></uui-table-cell>
-                        <uui-table-cell>${i.name}</uui-table-cell>
-                        <uui-table-cell>${e.name}</uui-table-cell>
+                        <uui-table-cell><strong>${t(this, e, i).call(this, "filename")}</strong></uui-table-cell>
+                        <uui-table-cell>${s.name}</uui-table-cell>
+                        <uui-table-cell>${a.name}</uui-table-cell>
                         <uui-table-cell>
-                            ${i.name === e.name ? s`<uui-tag look="secondary" color="default">Same</uui-tag>` : s`<uui-tag look="primary" color="warning">Changed</uui-tag>`}
+                            ${s.name === a.name ? l`<uui-tag look="secondary" color="default">${t(this, e, i).call(this, "same")}</uui-tag>` : l`<uui-tag look="primary" color="warning">${t(this, e, i).call(this, "changed")}</uui-tag>`}
                         </uui-table-cell>
                     </uui-table-row>
                     <uui-table-row>
-                        <uui-table-cell><strong>File Size</strong></uui-table-cell>
-                        <uui-table-cell>${this._formatSize(i.size)}</uui-table-cell>
-                        <uui-table-cell>${this._formatSize(e.size)}</uui-table-cell>
+                        <uui-table-cell><strong>${t(this, e, i).call(this, "fileSize")}</strong></uui-table-cell>
+                        <uui-table-cell>${this._formatSize(s.size)}</uui-table-cell>
+                        <uui-table-cell>${this._formatSize(a.size)}</uui-table-cell>
                         <uui-table-cell>
-                            <uui-tag look="secondary" color="${a === 0 ? "default" : a > 0 ? "warning" : "positive"}">
-                                ${t}
+                            <uui-tag look="secondary" color="${o === 0 ? "default" : o > 0 ? "warning" : "positive"}">
+                                ${r}
                             </uui-tag>
                         </uui-table-cell>
                     </uui-table-row>
                     <uui-table-row>
-                        <uui-table-cell><strong>Date</strong></uui-table-cell>
-                        <uui-table-cell>${this._formatDate(i.date)}</uui-table-cell>
-                        <uui-table-cell>${this._formatDate(e.lastModified)}</uui-table-cell>
+                        <uui-table-cell><strong>${t(this, e, i).call(this, "date")}</strong></uui-table-cell>
+                        <uui-table-cell>${this._formatDate(s.date)}</uui-table-cell>
+                        <uui-table-cell>${this._formatDate(a.lastModified)}</uui-table-cell>
                         <uui-table-cell></uui-table-cell>
                     </uui-table-row>
-                    ${i.uploader ? s`
+                    ${s.uploader ? l`
                         <uui-table-row>
-                            <uui-table-cell><strong>Uploaded By</strong></uui-table-cell>
-                            <uui-table-cell>${i.uploader.replace(/_/g, " ")}</uui-table-cell>
+                            <uui-table-cell><strong>${t(this, e, i).call(this, "uploadedBy")}</strong></uui-table-cell>
+                            <uui-table-cell>${s.uploader.replace(/_/g, " ")}</uui-table-cell>
                             <uui-table-cell>—</uui-table-cell>
                             <uui-table-cell></uui-table-cell>
                         </uui-table-row>
@@ -692,72 +695,72 @@ let n = class extends v(h) {
    * Renders a compact summary stats strip for this media item's snapshots
    */
   _renderStats() {
-    return this._totalCount === 0 ? "" : s`
+    return this._totalCount === 0 ? "" : l`
             <div class="stats-strip">
                 <div class="stats-strip-item">
                     <uui-icon name="icon-documents"></uui-icon>
                     <span class="stats-strip-value">${this._totalCount}</span>
-                    <span class="stats-strip-label">Snapshot${this._totalCount !== 1 ? "s" : ""}</span>
+                    <span class="stats-strip-label">${this._totalCount !== 1 ? t(this, e, i).call(this, "snapshots") : t(this, e, i).call(this, "snapshot")}</span>
                 </div>
                 <div class="stats-strip-divider"></div>
                 <div class="stats-strip-item">
                     <uui-icon name="icon-server"></uui-icon>
                     <span class="stats-strip-value">${this._formatSize(this._totalSizeBytes)}</span>
-                    <span class="stats-strip-label">Total Size</span>
+                    <span class="stats-strip-label">${t(this, e, i).call(this, "totalSize")}</span>
                 </div>
                 <div class="stats-strip-divider"></div>
                 <div class="stats-strip-item">
                     <uui-icon name="icon-calendar"></uui-icon>
                     <span class="stats-strip-value">${this._oldestDate ? this._formatDate(this._oldestDate) : "—"}</span>
-                    <span class="stats-strip-label">Oldest</span>
+                    <span class="stats-strip-label">${t(this, e, i).call(this, "oldest")}</span>
                 </div>
                 <div class="stats-strip-divider"></div>
                 <div class="stats-strip-item">
                     <uui-icon name="icon-calendar"></uui-icon>
                     <span class="stats-strip-value">${this._newestDate ? this._formatDate(this._newestDate) : "—"}</span>
-                    <span class="stats-strip-label">Latest</span>
+                    <span class="stats-strip-label">${t(this, e, i).call(this, "latest")}</span>
                 </div>
                 <div class="stats-strip-divider"></div>
                 <div class="stats-strip-item">
                     <uui-icon name="icon-users"></uui-icon>
                     <span class="stats-strip-value">${this._uniqueUploaderCount}</span>
-                    <span class="stats-strip-label">Contributor${this._uniqueUploaderCount !== 1 ? "s" : ""}</span>
+                    <span class="stats-strip-label">${this._uniqueUploaderCount !== 1 ? t(this, e, i).call(this, "contributors") : t(this, e, i).call(this, "contributor")}</span>
                 </div>
             </div>
         `;
   }
   render() {
     if (this._loading)
-      return s`<div class="loader"><uui-loader></uui-loader> Fetching snapshots...</div>`;
+      return l`<div class="loader"><uui-loader></uui-loader> ${t(this, e, i).call(this, "fetchingSnapshots")}</div>`;
     if (this._versions.length === 0)
-      return s`
+      return l`
                 <uui-box>
                     <div style="display: flex; align-items: center; gap: var(--uui-size-space-3);">
                         <uui-icon name="info" style="color: var(--uui-color-primary);"></uui-icon>
-                        <span>No previous versions found in the snapshots container.</span>
+                        <span>${t(this, e, i).call(this, "noVersionsFound")}</span>
                     </div>
                 </uui-box>
             `;
-    const e = this._versions.length === 1 && this._totalCount === 1, i = (this._currentPage - 1) * this._pageSize, a = this._selectedSnapshots.size > 0;
-    return s`
+    const a = this._versions.length === 1 && this._totalCount === 1, s = (this._currentPage - 1) * this._pageSize, o = this._selectedSnapshots.size > 0;
+    return l`
             <div class="snapshot-container">
 
                 <!-- Summary stats for this media item -->
                 ${this._renderStats()}
 
                 <!-- Bulk action toolbar -->
-                ${a ? s`
+                ${o ? l`
                     <div class="bulk-toolbar">
                         <span class="bulk-toolbar-count">
                             <uui-icon name="icon-check"></uui-icon>
-                            ${this._selectedSnapshots.size} snapshot${this._selectedSnapshots.size > 1 ? "s" : ""} selected
+                            ${this._selectedSnapshots.size} ${this._selectedSnapshots.size > 1 ? t(this, e, i).call(this, "snapshots") : t(this, e, i).call(this, "snapshot")} ${t(this, e, i).call(this, "selected")}
                         </span>
                         <div class="bulk-toolbar-actions">
                             <uui-button
                                 look="secondary"
                                 compact
                                 @click="${this._clearSelection}">
-                                Clear Selection
+                                ${t(this, e, i).call(this, "clearSelection")}
                             </uui-button>
                             <uui-button
                                 look="primary"
@@ -766,7 +769,7 @@ let n = class extends v(h) {
                                 ?disabled="${this._isDeleting}"
                                 @click="${this._bulkDeleteSnapshots}">
                                 <uui-icon name="icon-trash"></uui-icon>
-                                ${this._isDeleting ? "Deleting..." : `Delete ${this._selectedSnapshots.size} Snapshot${this._selectedSnapshots.size > 1 ? "s" : ""}`}
+                                ${this._isDeleting ? t(this, e, i).call(this, "deleting") : `${t(this, e, i).call(this, "delete")} ${this._selectedSnapshots.size} ${this._selectedSnapshots.size > 1 ? t(this, e, i).call(this, "snapshots") : t(this, e, i).call(this, "snapshot")}`}
                             </uui-button>
                         </div>
                     </div>
@@ -779,26 +782,26 @@ let n = class extends v(h) {
                                 type="checkbox"
                                 .checked="${this._allPageSelected}"
                                 @change="${this._toggleSelectAll}"
-                                title="Select all on this page"
+                                title="${t(this, e, i).call(this, "selectAllOnPage")}"
                                 class="select-checkbox"
                             />
                         </uui-table-head-cell>
-                        <uui-table-head-cell>Version</uui-table-head-cell>
-                        <uui-table-head-cell>Uploaded</uui-table-head-cell>
-                        <uui-table-head-cell style="text-align: right;">Actions</uui-table-head-cell>
+                        <uui-table-head-cell>${t(this, e, i).call(this, "version")}</uui-table-head-cell>
+                        <uui-table-head-cell>${t(this, e, i).call(this, "uploaded")}</uui-table-head-cell>
+                        <uui-table-head-cell style="text-align: right;">${t(this, e, i).call(this, "actions")}</uui-table-head-cell>
                     </uui-table-head>
 
-                    ${this._versions.map((t, o) => {
-      const u = i + o, c = u === 0, p = this._selectedSnapshots.has(t.name);
-      return s`
-                            <uui-table-row class="${p ? "row-selected" : ""}">
+                    ${this._versions.map((r, n) => {
+      const h = s + n, p = h === 0, v = this._selectedSnapshots.has(r.name);
+      return l`
+                            <uui-table-row class="${v ? "row-selected" : ""}">
                                 <uui-table-cell style="width: 40px;">
                                     <input
                                         type="checkbox"
-                                        .checked="${p}"
-                                        ?disabled="${c}"
-                                        @change="${() => this._toggleSelection(t.name)}"
-                                        title="${c ? "Cannot select the latest version" : "Select this snapshot"}"
+                                        .checked="${v}"
+                                        ?disabled="${p}"
+                                        @change="${() => this._toggleSelection(r.name)}"
+                                        title="${p ? t(this, e, i).call(this, "cannotSelectLatest") : t(this, e, i).call(this, "selectThisSnapshot")}"
                                         class="select-checkbox"
                                     />
                                 </uui-table-cell>
@@ -807,19 +810,19 @@ let n = class extends v(h) {
                                 <uui-table-cell>
                                     <div class="version-cell">
                                         <div class="version-cell-primary">
-                                            ${this._isPreviewable(t.name) ? s`
+                                            ${this._isPreviewable(r.name) ? l`
                                                     <button
                                                         class="filename-link"
-                                                        @click="${() => this._openPreview(t)}"
-                                                        title="Click to preview">
-                                                        <uui-icon name="${this._getFileIcon(t.name)}"></uui-icon>
-                                                        ${t.name}
+                                                        @click="${() => this._openPreview(r)}"
+                                                        title="${t(this, e, i).call(this, "clickToPreview")}">
+                                                        <uui-icon name="${this._getFileIcon(r.name)}"></uui-icon>
+                                                        ${r.name}
                                                     </button>
-                                                ` : s`<span class="filename-text"><uui-icon name="icon-document"></uui-icon> ${t.name}</span>`}
-                                            ${this._renderStatus(t, u)}
+                                                ` : l`<span class="filename-text"><uui-icon name="icon-document"></uui-icon> ${r.name}</span>`}
+                                            ${this._renderStatus(r, h)}
                                         </div>
                                         <div class="version-cell-secondary">
-                                            ${this._renderNoteCell(t)}
+                                            ${this._renderNoteCell(r)}
                                         </div>
                                     </div>
                                 </uui-table-cell>
@@ -827,8 +830,8 @@ let n = class extends v(h) {
                                 <!-- Uploaded: date + uploader stacked -->
                                 <uui-table-cell>
                                     <div class="upload-cell">
-                                        <span class="upload-date">${this._formatDate(t.date)}</span>
-                                        <span class="upload-user">${t.uploader.replace(/_/g, " ")}</span>
+                                        <span class="upload-date">${this._formatDate(r.date)}</span>
+                                        <span class="upload-user">${r.uploader.replace(/_/g, " ")}</span>
                                     </div>
                                 </uui-table-cell>
 
@@ -838,44 +841,44 @@ let n = class extends v(h) {
                                         <uui-button
                                             look="secondary"
                                             compact
-                                            ?disabled="${c}"
-                                            title="${c ? "This is the latest version" : "Compare with current file"}"
-                                            @click="${() => this._openComparison(t)}">
+                                            ?disabled="${p}"
+                                            title="${p ? t(this, e, i).call(this, "thisIsLatest") : t(this, e, i).call(this, "compareWithCurrent")}"
+                                            @click="${() => this._openComparison(r)}">
                                             <uui-icon name="icon-split"></uui-icon>
                                         </uui-button>
                                         <uui-button
                                             look="secondary"
                                             compact
-                                            href="${t.url}"
+                                            href="${r.url}"
                                             target="_blank"
-                                            title="Download this version">
+                                            title="${t(this, e, i).call(this, "downloadThisVersion")}">
                                             <uui-icon name="icon-download-alt"></uui-icon>
                                         </uui-button>
                                         <uui-button
-                                            look="${t.isPinned ? "primary" : "secondary"}"
-                                            color="${t.isPinned ? "warning" : "default"}"
+                                            look="${r.isPinned ? "primary" : "secondary"}"
+                                            color="${r.isPinned ? "warning" : "default"}"
                                             compact
-                                            ?disabled="${this._togglingPin === t.name}"
-                                            title="${t.isPinned ? "Unpin — allow automatic cleanup" : "Pin — protect from automatic cleanup"}"
-                                            @click="${() => this._togglePin(t)}">
+                                            ?disabled="${this._togglingPin === r.name}"
+                                            title="${r.isPinned ? t(this, e, i).call(this, "unpinAllow") : t(this, e, i).call(this, "pinProtect")}"
+                                            @click="${() => this._togglePin(r)}">
                                             <uui-icon name="icon-pin-location"></uui-icon>
                                         </uui-button>
                                         <uui-button
                                             look="primary"
                                             color="positive"
                                             compact
-                                            ?disabled="${e || this._isRestoring || c}"
-                                            title="${e ? "Cannot restore when only one version exists" : c ? "This is already the latest version" : "Restore this version"}"
-                                            @click="${() => this._restoreVersion(t)}">
+                                            ?disabled="${a || this._isRestoring || p}"
+                                            title="${a ? t(this, e, i).call(this, "cannotRestoreSingleVersion") : p ? t(this, e, i).call(this, "alreadyLatest") : t(this, e, i).call(this, "restoreThisVersion")}"
+                                            @click="${() => this._restoreVersion(r)}">
                                             <uui-icon name="icon-refresh"></uui-icon>
                                         </uui-button>
                                         <uui-button
                                             look="secondary"
                                             color="danger"
                                             compact
-                                            ?disabled="${c || this._isDeleting || t.isPinned}"
-                                            title="${t.isPinned ? "Unpin before deleting" : c ? "Cannot delete the latest version" : "Delete this snapshot"}"
-                                            @click="${() => this._deleteSnapshot(t)}">
+                                            ?disabled="${p || this._isDeleting || r.isPinned}"
+                                            title="${r.isPinned ? t(this, e, i).call(this, "unpinBeforeDeleting") : p ? t(this, e, i).call(this, "cannotDeleteLatest") : t(this, e, i).call(this, "deleteThisSnapshot")}"
+                                            @click="${() => this._deleteSnapshot(r)}">
                                             <uui-icon name="icon-trash"></uui-icon>
                                         </uui-button>
                                     </div>
@@ -885,7 +888,7 @@ let n = class extends v(h) {
     })}
                 </uui-table>
 
-                ${this._totalPages > 1 ? s`
+                ${this._totalPages > 1 ? l`
                     <div class="pagination-container">
                         <uui-pagination
                             .current="${this._currentPage}"
@@ -896,7 +899,7 @@ let n = class extends v(h) {
                 ` : ""}
 
                 <!-- File Preview Side Panel -->
-                ${this._showPreview ? s`
+                ${this._showPreview ? l`
                     <div class="preview-overlay" @click="${this._closePreview}"></div>
                     <div class="preview-panel">
                         <div class="preview-header">
@@ -904,8 +907,8 @@ let n = class extends v(h) {
                                 <uui-icon name="${this._getFileIcon(this._previewImageName)}"></uui-icon>
                                 ${this._getPreviewTitle()}
                             </h3>
-                            <uui-button 
-                                look="secondary" 
+                            <uui-button
+                                look="secondary"
                                 compact
                                 @click="${this._closePreview}">
                                 <uui-icon name="icon-delete"></uui-icon>
@@ -913,23 +916,23 @@ let n = class extends v(h) {
                         </div>
                         <div class="preview-content">
                             <div class="preview-filename">
-                                <strong>Filename:</strong> <br/>${this._previewImageName}
+                                <strong>${t(this, e, i).call(this, "filename")}:</strong> <br/>${this._previewImageName}
                             </div>
                             <div class="preview-media-container">
                                 ${this._renderPreviewContent()}
                             </div>
                             <div class="preview-actions">
-                                <uui-button 
-                                    look="primary" 
-                                    href="${this._previewImageUrl}" 
+                                <uui-button
+                                    look="primary"
+                                    href="${this._previewImageUrl}"
                                     target="_blank">
-                                    <uui-icon name="icon-out"></uui-icon> Open in New Tab
+                                    <uui-icon name="icon-out"></uui-icon> ${t(this, e, i).call(this, "openInNewTab")}
                                 </uui-button>
-                                <uui-button 
-                                    look="secondary" 
-                                    href="${this._previewImageUrl}" 
+                                <uui-button
+                                    look="secondary"
+                                    href="${this._previewImageUrl}"
                                     download="${this._previewImageName}">
-                                    <uui-icon name="icon-download-alt"></uui-icon> Download
+                                    <uui-icon name="icon-download-alt"></uui-icon> ${t(this, e, i).call(this, "download")}
                                 </uui-button>
                             </div>
                         </div>
@@ -941,8 +944,8 @@ let n = class extends v(h) {
             </div>
         `;
   }
-  _formatDate(e) {
-    return new Date(e).toLocaleDateString(void 0, {
+  _formatDate(a) {
+    return new Date(a).toLocaleDateString(void 0, {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -954,8 +957,8 @@ let n = class extends v(h) {
   /**
    * Enters inline edit mode for a snapshot's note
    */
-  _startEditNote(e) {
-    this._editingNoteName = e.name, this._editingNoteValue = e.note || "";
+  _startEditNote(a) {
+    this._editingNoteName = a.name, this._editingNoteValue = a.note || "";
   }
   /**
    * Cancels note editing
@@ -966,40 +969,40 @@ let n = class extends v(h) {
   /**
    * Saves the note to the snapshot's blob metadata
    */
-  async _saveNote(e) {
+  async _saveNote(a) {
     if (this._savingNote) return;
     this._savingNote = !0;
-    const i = await this._authContext?.getLatestToken();
-    if (!i) {
+    const s = await this._authContext?.getLatestToken();
+    if (!s) {
       this._notificationContext?.peek("danger", {
-        data: { headline: "Authentication Error", message: "No authentication token available." }
+        data: { headline: t(this, e, i).call(this, "authError"), message: t(this, e, i).call(this, "noAuthToken") }
       }), this._savingNote = !1;
       return;
     }
     try {
-      const a = await fetch("/umbraco/management/api/v1/snapshot/update-note", {
+      const o = await fetch("/umbraco/management/api/v1/snapshot/update-note", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${i}`,
+          Authorization: `Bearer ${s}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
           mediaKey: this._mediaKey,
-          snapshotName: e.name,
+          snapshotName: a.name,
           note: this._editingNoteValue
         })
       });
-      if (a.ok)
-        e.note = this._editingNoteValue.trim() || null, this._editingNoteName = null, this._editingNoteValue = "", this.requestUpdate();
+      if (o.ok)
+        a.note = this._editingNoteValue.trim() || null, this._editingNoteName = null, this._editingNoteValue = "", this.requestUpdate();
       else {
-        const t = await a.json();
+        const r = await o.json();
         this._notificationContext?.peek("danger", {
-          data: { headline: "Save Failed", message: t.detail || "Failed to save note" }
+          data: { headline: t(this, e, i).call(this, "saveFailed"), message: r.detail || t(this, e, i).call(this, "failedToSaveNote") }
         });
       }
-    } catch (a) {
-      console.error("Failed to save note:", a), this._notificationContext?.peek("danger", {
-        data: { headline: "Error", message: "An error occurred while saving the note." }
+    } catch (o) {
+      console.error("Failed to save note:", o), this._notificationContext?.peek("danger", {
+        data: { headline: t(this, e, i).call(this, "error"), message: t(this, e, i).call(this, "errorSavingNote") }
       });
     } finally {
       this._savingNote = !1;
@@ -1008,30 +1011,30 @@ let n = class extends v(h) {
   /**
    * Handles keydown in the note input — Enter saves, Escape cancels
    */
-  _onNoteKeydown(e, i) {
-    e.key === "Enter" ? (e.preventDefault(), this._saveNote(i)) : e.key === "Escape" && this._cancelEditNote();
+  _onNoteKeydown(a, s) {
+    a.key === "Enter" ? (a.preventDefault(), this._saveNote(s)) : a.key === "Escape" && this._cancelEditNote();
   }
   /**
    * Renders the note cell for a snapshot row
    */
-  _renderNoteCell(e) {
-    return this._editingNoteName === e.name ? s`
+  _renderNoteCell(a) {
+    return this._editingNoteName === a.name ? l`
                 <div class="note-edit">
                     <input
                         type="text"
                         class="note-input"
                         maxlength="500"
-                        placeholder="Add a note…"
+                        placeholder="${t(this, e, i).call(this, "addNotePlaceholder")}"
                         .value="${this._editingNoteValue}"
-                        @input="${(a) => this._editingNoteValue = a.target.value}"
-                        @keydown="${(a) => this._onNoteKeydown(a, e)}"
+                        @input="${(o) => this._editingNoteValue = o.target.value}"
+                        @keydown="${(o) => this._onNoteKeydown(o, a)}"
                     />
                     <div class="note-edit-actions">
                         <uui-button
                             look="primary"
                             compact
                             ?disabled="${this._savingNote}"
-                            @click="${() => this._saveNote(e)}">
+                            @click="${() => this._saveNote(a)}">
                             <uui-icon name="icon-check"></uui-icon>
                         </uui-button>
                         <uui-button
@@ -1042,14 +1045,14 @@ let n = class extends v(h) {
                         </uui-button>
                     </div>
                 </div>
-            ` : e.note ? s`
-                <button class="note-display" @click="${() => this._startEditNote(e)}" title="Click to edit note">
+            ` : a.note ? l`
+                <button class="note-display" @click="${() => this._startEditNote(a)}" title="${t(this, e, i).call(this, "clickToEditNote")}">
                     <uui-icon name="icon-edit"></uui-icon>
-                    <span class="note-text">${e.note}</span>
+                    <span class="note-text">${a.note}</span>
                 </button>
-            ` : s`
-            <button class="note-add" @click="${() => this._startEditNote(e)}" title="Add a note">
-                <uui-icon name="icon-edit"></uui-icon> Add note
+            ` : l`
+            <button class="note-add" @click="${() => this._startEditNote(a)}" title="${t(this, e, i).call(this, "addNoteTitle")}">
+                <uui-icon name="icon-edit"></uui-icon> ${t(this, e, i).call(this, "addNote")}
             </button>
         `;
   }
@@ -1057,49 +1060,54 @@ let n = class extends v(h) {
   /**
    * Toggles the pinned state of a snapshot
    */
-  async _togglePin(e) {
+  async _togglePin(a) {
     if (this._togglingPin) return;
-    this._togglingPin = e.name;
-    const i = await this._authContext?.getLatestToken();
-    if (!i) {
+    this._togglingPin = a.name;
+    const s = await this._authContext?.getLatestToken();
+    if (!s) {
       this._notificationContext?.peek("danger", {
-        data: { headline: "Authentication Error", message: "No authentication token available." }
+        data: { headline: t(this, e, i).call(this, "authError"), message: t(this, e, i).call(this, "noAuthToken") }
       }), this._togglingPin = null;
       return;
     }
     try {
-      const a = await fetch("/umbraco/management/api/v1/snapshot/toggle-pin", {
+      const o = await fetch("/umbraco/management/api/v1/snapshot/toggle-pin", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${i}`,
+          Authorization: `Bearer ${s}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
           mediaKey: this._mediaKey,
-          snapshotName: e.name
+          snapshotName: a.name
         })
       });
-      if (a.ok) {
-        const t = await a.json();
-        e.isPinned = t.isPinned, this.requestUpdate(), this._notificationContext?.peek("positive", {
-          data: { headline: t.isPinned ? "Snapshot Pinned" : "Snapshot Unpinned", message: t.message }
+      if (o.ok) {
+        const r = await o.json();
+        a.isPinned = r.isPinned, this.requestUpdate(), this._notificationContext?.peek("positive", {
+          data: { headline: r.isPinned ? t(this, e, i).call(this, "snapshotPinned") : t(this, e, i).call(this, "snapshotUnpinned"), message: r.message }
         });
       } else {
-        const t = await a.json();
+        const r = await o.json();
         this._notificationContext?.peek("danger", {
-          data: { headline: "Pin Failed", message: t.detail || "Failed to update pin state" }
+          data: { headline: t(this, e, i).call(this, "pinFailed"), message: r.detail || t(this, e, i).call(this, "errorTogglingPin") }
         });
       }
-    } catch (a) {
-      console.error("Failed to toggle pin:", a), this._notificationContext?.peek("danger", {
-        data: { headline: "Error", message: "An error occurred while updating the pin state." }
+    } catch (o) {
+      console.error("Failed to toggle pin:", o), this._notificationContext?.peek("danger", {
+        data: { headline: t(this, e, i).call(this, "error"), message: t(this, e, i).call(this, "errorTogglingPin") }
       });
     } finally {
       this._togglingPin = null;
     }
   }
 };
-n.styles = m`
+m = /* @__PURE__ */ new WeakMap();
+e = /* @__PURE__ */ new WeakSet();
+i = function(a) {
+  return D(this, m).term(`umbracoMediaSnapshot_${a}`);
+};
+c.styles = w`
         :host {
             display: block;
             margin-bottom: 20px;
@@ -1670,12 +1678,317 @@ n.styles = m`
             font-weight: 500;
         }
 
-        .status-badge {
-            flex-shrink: 0;
-            font-size: 0.7rem;
+        /* Uploaded date and user */
+        .upload-cell {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
         }
 
-        /* Upload cell: date + user stacked */
+        .upload-date {
+            font-size: 0.85rem;
+        }
+
+        .upload-user {
+            font-size: 0.8rem;
+            color: var(--uui-color-text-alt);
+        }
+
+        /* Actions cell: right-aligned icon buttons */
+        .actions-cell {
+            display: flex;
+            gap: 4px;
+            justify-content: flex-end;
+        }
+
+        /* -- Comparison specific styles -- */
+        .comparison-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 80%;
+            max-width: 1000px;
+            background: var(--uui-color-surface);
+            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+            z-index: 1100;
+            display: flex;
+            flex-direction: column;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .comparison-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--uui-size-space-5);
+            border-bottom: 1px solid var(--uui-color-border);
+            background: var(--uui-color-surface-alt);
+        }
+
+        .comparison-header h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: var(--uui-size-space-2);
+        }
+
+        .comparison-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--uui-size-space-5);
+            display: flex;
+            flex-direction: column;
+            gap: var(--uui-size-space-5);
+        }
+
+        .slider-comparison {
+            position: relative;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .slider-container {
+            position: relative;
+            overflow: hidden;
+            border-radius: var(--uui-border-radius);
+            border: 1px solid var(--uui-color-border);
+            background: var(--uui-color-surface-alt);
+        }
+
+        .slider-img-under {
+            display: block;
+            width: 100%;
+            max-height: 400px;
+            object-fit: contain;
+        }
+
+        .slider-img-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            overflow: hidden;
+        }
+
+        .slider-img-over img {
+            display: block;
+            height: 100%;
+            max-height: 400px;
+            object-fit: contain;
+        }
+
+        .slider-handle {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--uui-color-interactive);
+            transform: translateX(-50%);
+            pointer-events: none;
+        }
+
+        .slider-handle-line {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--uui-color-interactive);
+            border: 2px solid var(--uui-color-surface);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .slider-range {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: ew-resize;
+            margin: 0;
+        }
+
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+        }
+
+        .slider-labels span {
+            display: flex;
+            align-items: center;
+            gap: var(--uui-size-space-2);
+        }
+
+        /* Metadata diff table */
+        .metadata-comparison {
+            border-top: 1px solid var(--uui-color-border);
+            padding-top: var(--uui-size-space-4);
+        }
+
+        .metadata-comparison h4 {
+            margin: 0 0 var(--uui-size-space-3) 0;
+            font-size: 1rem;
+        }
+
+        /* Stats strip */
+        .stats-strip {
+            display: flex;
+            align-items: center;
+            gap: var(--uui-size-space-4);
+            padding: var(--uui-size-space-3) var(--uui-size-space-4);
+            margin-bottom: var(--uui-size-space-4);
+            background: var(--uui-color-surface-alt);
+            border: 1px solid var(--uui-color-border);
+            border-radius: var(--uui-border-radius);
+            flex-wrap: wrap;
+        }
+
+        .stats-strip-item {
+            display: flex;
+            align-items: center;
+            gap: var(--uui-size-space-2);
+        }
+
+        .stats-strip-item uui-icon {
+            color: var(--uui-color-primary);
+            font-size: 0.9rem;
+        }
+
+        .stats-strip-value {
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .stats-strip-label {
+            font-size: 0.8rem;
+            color: var(--uui-color-text-alt);
+        }
+
+        .stats-strip-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--uui-color-border);
+        }
+
+        /* Note cell */
+        .note-edit {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .note-input {
+            flex: 1;
+            padding: 4px 8px;
+            border: 1px solid var(--uui-color-border);
+            border-radius: var(--uui-border-radius);
+            font: inherit;
+            font-size: 0.85rem;
+            min-width: 120px;
+            background: var(--uui-color-surface);
+            color: var(--uui-color-text);
+        }
+
+        .note-input:focus {
+            outline: none;
+            border-color: var(--uui-color-interactive);
+            box-shadow: 0 0 0 1px var(--uui-color-interactive);
+        }
+
+        .note-edit-actions {
+            display: flex;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        .note-display {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px 4px;
+            font: inherit;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--uui-color-text);
+            border-radius: var(--uui-border-radius);
+            transition: background 0.2s;
+            max-width: 200px;
+        }
+
+        .note-display:hover {
+            background: var(--uui-color-surface-alt);
+        }
+
+        .note-display uui-icon {
+            color: var(--uui-color-text-alt);
+            font-size: 0.75rem;
+            flex-shrink: 0;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .note-display:hover uui-icon {
+            opacity: 1;
+        }
+
+        .note-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .note-add {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px 4px;
+            font: inherit;
+            font-size: 0.8rem;
+            color: var(--uui-color-text-alt);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+
+        .note-add:hover {
+            opacity: 1;
+            color: var(--uui-color-interactive);
+        }
+
+        /* Version cell: stacked filename + note */
+        .version-cell {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .version-cell-primary {
+            display: flex;
+            align-items: center;
+            gap: var(--uui-size-space-2);
+        }
+
+        .version-cell-secondary {
+            padding-left: 0;
+        }
+
+        .filename-text {
+            font-weight: 500;
+        }
+
+        /* Uploaded date and user */
         .upload-cell {
             display: flex;
             flex-direction: column;
@@ -1721,88 +2034,88 @@ n.styles = m`
             }
         }
     `;
-r([
-  l()
-], n.prototype, "_versions", 2);
-r([
-  l()
-], n.prototype, "_loading", 2);
-r([
-  l()
-], n.prototype, "_mediaKey", 2);
-r([
-  l()
-], n.prototype, "_previewImageUrl", 2);
-r([
-  l()
-], n.prototype, "_previewImageName", 2);
-r([
-  l()
-], n.prototype, "_showPreview", 2);
-r([
-  l()
-], n.prototype, "_isRestoring", 2);
-r([
-  l()
-], n.prototype, "_currentPage", 2);
-r([
-  l()
-], n.prototype, "_showComparison", 2);
-r([
-  l()
-], n.prototype, "_comparisonSnapshot", 2);
-r([
-  l()
-], n.prototype, "_comparisonCurrent", 2);
-r([
-  l()
-], n.prototype, "_comparisonLoading", 2);
-r([
-  l()
-], n.prototype, "_comparisonMode", 2);
-r([
-  l()
-], n.prototype, "_sliderPosition", 2);
-r([
-  l()
-], n.prototype, "_selectedSnapshots", 2);
-r([
-  l()
-], n.prototype, "_isDeleting", 2);
-r([
-  l()
-], n.prototype, "_editingNoteName", 2);
-r([
-  l()
-], n.prototype, "_editingNoteValue", 2);
-r([
-  l()
-], n.prototype, "_savingNote", 2);
-r([
-  l()
-], n.prototype, "_totalCount", 2);
-r([
-  l()
-], n.prototype, "_totalPages", 2);
-r([
-  l()
-], n.prototype, "_totalSizeBytes", 2);
-r([
-  l()
-], n.prototype, "_oldestDate", 2);
-r([
-  l()
-], n.prototype, "_newestDate", 2);
-r([
-  l()
-], n.prototype, "_uniqueUploaderCount", 2);
-r([
-  l()
-], n.prototype, "_togglingPin", 2);
-n = r([
-  g("snapshot-viewer")
-], n);
+u([
+  d()
+], c.prototype, "_versions", 2);
+u([
+  d()
+], c.prototype, "_loading", 2);
+u([
+  d()
+], c.prototype, "_mediaKey", 2);
+u([
+  d()
+], c.prototype, "_previewImageUrl", 2);
+u([
+  d()
+], c.prototype, "_previewImageName", 2);
+u([
+  d()
+], c.prototype, "_showPreview", 2);
+u([
+  d()
+], c.prototype, "_isRestoring", 2);
+u([
+  d()
+], c.prototype, "_currentPage", 2);
+u([
+  d()
+], c.prototype, "_showComparison", 2);
+u([
+  d()
+], c.prototype, "_comparisonSnapshot", 2);
+u([
+  d()
+], c.prototype, "_comparisonCurrent", 2);
+u([
+  d()
+], c.prototype, "_comparisonLoading", 2);
+u([
+  d()
+], c.prototype, "_comparisonMode", 2);
+u([
+  d()
+], c.prototype, "_sliderPosition", 2);
+u([
+  d()
+], c.prototype, "_selectedSnapshots", 2);
+u([
+  d()
+], c.prototype, "_isDeleting", 2);
+u([
+  d()
+], c.prototype, "_editingNoteName", 2);
+u([
+  d()
+], c.prototype, "_editingNoteValue", 2);
+u([
+  d()
+], c.prototype, "_savingNote", 2);
+u([
+  d()
+], c.prototype, "_totalCount", 2);
+u([
+  d()
+], c.prototype, "_totalPages", 2);
+u([
+  d()
+], c.prototype, "_totalSizeBytes", 2);
+u([
+  d()
+], c.prototype, "_oldestDate", 2);
+u([
+  d()
+], c.prototype, "_newestDate", 2);
+u([
+  d()
+], c.prototype, "_uniqueUploaderCount", 2);
+u([
+  d()
+], c.prototype, "_togglingPin", 2);
+c = u([
+  y("snapshot-viewer")
+], c);
 export {
-  n as SnapshotViewerElement
+  c as SnapshotViewerElement
 };
 //# sourceMappingURL=umbraco-media-snapshot.js.map

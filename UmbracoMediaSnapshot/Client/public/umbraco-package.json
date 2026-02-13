@@ -1,7 +1,7 @@
 {
   "id": "UmbracoMediaSnapshot",
   "name": "Umbraco Media Snapshot",
-  "version": "2.1.5",
+  "version": "2.1.9",
   "allowTelemetry": true,
   "extensions": [
     {
@@ -34,6 +34,51 @@
           "match": "Umb.Section.Media"
         }
       ]
+    },
+    {
+      "type": "localization",
+      "alias": "UmbracoMediaSnapshot.Localization.En",
+      "name": "English",
+      "meta": {
+        "culture": "en"
+      },
+      "js": "/App_Plugins/UmbracoMediaSnapshot/lang/en.js"
+    },
+    {
+      "type": "localization",
+      "alias": "UmbracoMediaSnapshot.Localization.Nl",
+      "name": "Nederlands",
+      "meta": {
+        "culture": "nl"
+      },
+      "js": "/App_Plugins/UmbracoMediaSnapshot/lang/nl.js"
+    },
+    {
+      "type": "localization",
+      "alias": "UmbracoMediaSnapshot.Localization.Da",
+      "name": "Dansk",
+      "meta": {
+        "culture": "da"
+      },
+      "js": "/App_Plugins/UmbracoMediaSnapshot/lang/da.js"
+    },
+    {
+      "type": "localization",
+      "alias": "UmbracoMediaSnapshot.Localization.De",
+      "name": "Deutsch",
+      "meta": {
+        "culture": "de"
+      },
+      "js": "/App_Plugins/UmbracoMediaSnapshot/lang/de.js"
+    },
+    {
+      "type": "localization",
+      "alias": "UmbracoMediaSnapshot.Localization.Fr",
+      "name": "Français",
+      "meta": {
+        "culture": "fr"
+      },
+      "js": "/App_Plugins/UmbracoMediaSnapshot/lang/fr.js"
     }
   ]
 }

@@ -1,5 +1,6 @@
 ﻿import { LitElement, html, css, customElement, state } from '@umbraco-cms/backoffice/external/lit';
 import { UmbElementMixin } from '@umbraco-cms/backoffice/element-api';
+import { UmbLocalizationController } from '@umbraco-cms/backoffice/localization-api';
 import { UMB_AUTH_CONTEXT } from '@umbraco-cms/backoffice/auth';
 
 interface FolderSummary {
@@ -37,6 +38,13 @@ interface StorageStats {
 @customElement('snapshot-dashboard')
 export class SnapshotDashboardElement extends UmbElementMixin(LitElement) {
 
+    readonly #localize = new UmbLocalizationController(this);
+
+    /** Shorthand for localize.term with the package prefix */
+    #t(key: string): string {
+        return this.#localize.term(`umbracoMediaSnapshot_${key}`);
+    }
+
     @state()
     private _stats: StorageStats | null = null;
 
@@ -63,7 +71,7 @@ export class SnapshotDashboardElement extends UmbElementMixin(LitElement) {
 
         const token = await this._authContext?.getLatestToken();
         if (!token) {
-            this._error = 'No authentication token available.';
+            this._error = this.#t('noAuthToken');
             this._loading = false;
             return;
         }
@@ -80,13 +88,13 @@ export class SnapshotDashboardElement extends UmbElementMixin(LitElement) {
             if (response.ok) {
                 this._stats = await response.json();
             } else if (response.status === 401) {
-                this._error = 'Unauthorized. Your session may have expired.';
+                this._error = this.#t('dashboardUnauthorized');
             } else {
-                this._error = 'Failed to load storage statistics.';
+                this._error = this.#t('dashboardLoadFailed');
             }
         } catch (error) {
             console.error('Failed to fetch storage stats:', error);
-            this._error = 'An error occurred while loading storage statistics.';
+            this._error = this.#t('dashboardLoadError');
         } finally {
             this._loading = false;
         }
@@ -111,19 +119,20 @@ export class SnapshotDashboardElement extends UmbElementMixin(LitElement) {
     private _renderFolderCell(folder: FolderSummary) {
         if (folder.mediaKey) {
             const href = `/umbraco/section/media/workspace/media/edit/${folder.mediaKey}`;
+            const displayName = folder.mediaName || folder.folderName;
             return html`
-                <a class="media-link" href="${href}" title="Open ${folder.mediaName || folder.folderName} in media editor">
+                <a class="media-link" href="${href}" title="${this.#t('dashboardOpenInEditor').replace('{0}', displayName)}">
                     <uui-icon name="icon-picture"></uui-icon>
-                    <span class="media-link-name">${folder.mediaName || folder.folderName}</span>
+                    <span class="media-link-name">${displayName}</span>
                     <code class="folder-name-sub">${folder.folderName}</code>
                 </a>
             `;
         }
 
         return html`
-            <span class="folder-unresolved" title="Media item not found — folder may be orphaned">
+            <span class="folder-unresolved" title="${this.#t('dashboardOrphanedTitle')}">
                 <code class="folder-name">${folder.folderName}</code>
-                <uui-tag look="secondary" color="warning">Orphaned</uui-tag>
+                <uui-tag look="secondary" color="warning">${this.#t('dashboardOrphaned')}</uui-tag>
             </span>
         `;
     }
@@ -133,7 +142,7 @@ export class SnapshotDashboardElement extends UmbElementMixin(LitElement) {
             return html`
                 <div class="dashboard-loading">
                     <uui-loader></uui-loader>
-                    Loading snapshot storage statistics...
+                    ${this.#t('dashboardLoading')}
                 </div>
             `;
         }
@@ -145,7 +154,7 @@ export class SnapshotDashboardElement extends UmbElementMixin(LitElement) {
                         <uui-icon name="icon-alert"></uui-icon>
                         <span>${this._error}</span>
                         <uui-button look="primary" compact @click="${this._fetchStats}">
-                            <uui-icon name="icon-refresh"></uui-icon> Retry
+                            <uui-icon name="icon-refresh"></uui-icon> ${this.#t('dashboardRetry')}
                         </uui-button>
                     </div>
                 </uui-box>
@@ -153,6 +162,7 @@ export class SnapshotDashboardElement extends UmbElementMixin(LitElement) {
         }
 
         const stats = this._stats!;
+        const hours = stats.settings.sasTokenExpirationHours;
 
         return html`
             <div class="dashboard">
@@ -161,12 +171,12 @@ export class SnapshotDashboardElement extends UmbElementMixin(LitElement) {
                     <div>
                         <h2>
                             <uui-icon name="icon-history"></uui-icon>
-                            Snapshot Storage
+                            ${this.#t('dashboardTitle')}
                         </h2>
-                        <p class="dashboard-subtitle">Overview of media snapshot storage usage in Azure Blob Storage</p>
+                        <p class="dashboard-subtitle">${this.#t('dashboardSubtitle')}</p>
                     </div>
                     <uui-button look="secondary" compact @click="${this._fetchStats}">
-                        <uui-icon name="icon-refresh"></uui-icon> Refresh
+                        <uui-icon name="icon-refresh"></uui-icon> ${this.#t('dashboardRefresh')}
                     </uui-button>
                 </div>
 
@@ -179,7 +189,7 @@ export class SnapshotDashboardElement extends UmbElementMixin(LitElement) {
                             </div>
                             <div class="stat-content">
                                 <span class="stat-value">${stats.totalSnapshotCount.toLocaleString()}</span>
-                                <span class="stat-label">Total Snapshots</span>
+                                <span class="stat-label">${this.#t('dashboardTotalSnapshots')}</span>
                             </div>
                         </div>
                     </uui-box>
@@ -190,7 +200,7 @@ export class SnapshotDashboardElement extends UmbElementMixin(LitElement) {
                             </div>
                             <div class="stat-content">
                                 <span class="stat-value">${stats.totalSizeFormatted}</span>
-                                <span class="stat-label">Total Storage Used</span>
+                                <span class="stat-label">${this.#t('dashboardTotalStorage')}</span>
                             </div>
                         </div>
                     </uui-box>
@@ -201,7 +211,7 @@ export class SnapshotDashboardElement extends UmbElementMixin(LitElement) {
                             </div>
                             <div class="stat-content">
                                 <span class="stat-value">${stats.mediaItemCount.toLocaleString()}</span>
-                                <span class="stat-label">Media Items with Snapshots</span>
+                                <span class="stat-label">${this.#t('dashboardMediaItems')}</span>
                             </div>
                         </div>
                     </uui-box>
@@ -216,30 +226,30 @@ export class SnapshotDashboardElement extends UmbElementMixin(LitElement) {
                                         ? (stats.totalSnapshotCount / stats.mediaItemCount).toFixed(1)
                                         : '0'}
                                 </span>
-                                <span class="stat-label">Avg Snapshots per Media</span>
+                                <span class="stat-label">${this.#t('dashboardAvgSnapshots')}</span>
                             </div>
                         </div>
                     </uui-box>
                 </div>
 
                 <!-- Top Consumers -->
-                <uui-box headline="Top Storage Consumers">
+                <uui-box headline="${this.#t('dashboardTopConsumers')}">
                     ${stats.topConsumers.length === 0
                         ? html`
                             <div class="empty-state">
                                 <uui-icon name="icon-folder" style="font-size: 2rem; color: var(--uui-color-text-alt);"></uui-icon>
-                                <p>No snapshots found in storage.</p>
+                                <p>${this.#t('dashboardNoSnapshots')}</p>
                             </div>
                         `
                         : html`
                             <uui-table>
                                 <uui-table-head>
                                     <uui-table-head-cell style="width: 40px;">#</uui-table-head-cell>
-                                    <uui-table-head-cell>Media Item</uui-table-head-cell>
-                                    <uui-table-head-cell>Snapshots</uui-table-head-cell>
-                                    <uui-table-head-cell>Storage Used</uui-table-head-cell>
-                                    <uui-table-head-cell>Latest Snapshot</uui-table-head-cell>
-                                    <uui-table-head-cell>Oldest Snapshot</uui-table-head-cell>
+                                    <uui-table-head-cell>${this.#t('dashboardMediaItem')}</uui-table-head-cell>
+                                    <uui-table-head-cell>${this.#t('snapshots')}</uui-table-head-cell>
+                                    <uui-table-head-cell>${this.#t('dashboardStorageUsed')}</uui-table-head-cell>
+                                    <uui-table-head-cell>${this.#t('dashboardLatestSnapshot')}</uui-table-head-cell>
+                                    <uui-table-head-cell>${this.#t('dashboardOldestSnapshot')}</uui-table-head-cell>
                                 </uui-table-head>
                                 ${stats.topConsumers.map((folder, index) => html`
                                     <uui-table-row>
@@ -259,38 +269,38 @@ export class SnapshotDashboardElement extends UmbElementMixin(LitElement) {
                 </uui-box>
 
                 <!-- Current Settings -->
-                <uui-box headline="Active Configuration">
+                <uui-box headline="${this.#t('dashboardActiveConfig')}">
                     <div class="settings-grid">
                         <div class="setting-item">
-                            <span class="setting-label">Max Snapshots per Media</span>
+                            <span class="setting-label">${this.#t('dashboardMaxPerMedia')}</span>
                             <span class="setting-value">
                                 ${stats.settings.maxSnapshotsPerMedia === 0
-                                    ? html`<uui-tag look="secondary">Unlimited</uui-tag>`
+                                    ? html`<uui-tag look="secondary">${this.#t('dashboardUnlimited')}</uui-tag>`
                                     : stats.settings.maxSnapshotsPerMedia}
                             </span>
                         </div>
                         <div class="setting-item">
-                            <span class="setting-label">Max Snapshot Age</span>
+                            <span class="setting-label">${this.#t('dashboardMaxAge')}</span>
                             <span class="setting-value">
                                 ${stats.settings.maxSnapshotAgeDays === 0
-                                    ? html`<uui-tag look="secondary">Never expires</uui-tag>`
-                                    : `${stats.settings.maxSnapshotAgeDays} days`}
+                                    ? html`<uui-tag look="secondary">${this.#t('dashboardNeverExpires')}</uui-tag>`
+                                    : `${stats.settings.maxSnapshotAgeDays} ${this.#t('dashboardDays')}`}
                             </span>
                         </div>
                         <div class="setting-item">
-                            <span class="setting-label">Automatic Cleanup</span>
+                            <span class="setting-label">${this.#t('dashboardAutoCleanup')}</span>
                             <span class="setting-value">
                                 ${stats.settings.enableAutomaticCleanup
-                                    ? html`<uui-tag look="primary" color="positive">Enabled</uui-tag>`
-                                    : html`<uui-tag look="primary" color="danger">Disabled</uui-tag>`}
+                                    ? html`<uui-tag look="primary" color="positive">${this.#t('dashboardEnabled')}</uui-tag>`
+                                    : html`<uui-tag look="primary" color="danger">${this.#t('dashboardDisabled')}</uui-tag>`}
                             </span>
                         </div>
                         <div class="setting-item">
-                            <span class="setting-label">SAS Token Expiration</span>
-                            <span class="setting-value">${stats.settings.sasTokenExpirationHours} hour${stats.settings.sasTokenExpirationHours !== 1 ? 's' : ''}</span>
+                            <span class="setting-label">${this.#t('dashboardSasExpiration')}</span>
+                            <span class="setting-value">${hours} ${hours !== 1 ? this.#t('dashboardHours') : this.#t('dashboardHour')}</span>
                         </div>
                         <div class="setting-item">
-                            <span class="setting-label">Tracked Media Types</span>
+                            <span class="setting-label">${this.#t('dashboardTrackedTypes')}</span>
                             <span class="setting-value setting-value-tags">
                                 ${stats.settings.trackedMediaTypes.map(t => html`
                                     <uui-tag look="primary">${t}</uui-tag>

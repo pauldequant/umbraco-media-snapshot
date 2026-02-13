@@ -1,14 +1,17 @@
-import { LitElement as d, html as t, css as p, state as c, customElement as m } from "@umbraco-cms/backoffice/external/lit";
-import { UmbElementMixin as g } from "@umbraco-cms/backoffice/element-api";
-import { UMB_AUTH_CONTEXT as h } from "@umbraco-cms/backoffice/auth";
-var v = Object.defineProperty, b = Object.getOwnPropertyDescriptor, l = (a, e, o, r) => {
-  for (var i = r > 1 ? void 0 : r ? b(e, o) : e, n = a.length - 1, u; n >= 0; n--)
-    (u = a[n]) && (i = (r ? u(e, o, i) : u(i)) || i);
-  return r && i && v(e, o, i), i;
-};
-let s = class extends g(d) {
+import { LitElement as f, html as o, css as x, state as p, customElement as y } from "@umbraco-cms/backoffice/external/lit";
+import { UmbElementMixin as $ } from "@umbraco-cms/backoffice/element-api";
+import { UmbLocalizationController as _ } from "@umbraco-cms/backoffice/localization-api";
+import { UMB_AUTH_CONTEXT as z } from "@umbraco-cms/backoffice/auth";
+var k = Object.defineProperty, S = Object.getOwnPropertyDescriptor, v = (a) => {
+  throw TypeError(a);
+}, d = (a, i, l, n) => {
+  for (var r = n > 1 ? void 0 : n ? S(i, l) : i, c = a.length - 1, h; c >= 0; c--)
+    (h = a[c]) && (r = (n ? h(i, l, r) : h(r)) || r);
+  return n && r && k(i, l, r), r;
+}, g = (a, i, l) => i.has(a) || v("Cannot " + l), w = (a, i, l) => (g(a, i, "read from private field"), l ? l.call(a) : i.get(a)), b = (a, i, l) => i.has(a) ? v("Cannot add the same private member more than once") : i instanceof WeakSet ? i.add(a) : i.set(a, l), s = (a, i, l) => (g(a, i, "access private method"), l), m, t, e;
+let u = class extends $(f) {
   constructor() {
-    super(), this._stats = null, this._loading = !0, this._error = "", this.consumeContext(h, (a) => {
+    super(), b(this, t), b(this, m, new _(this)), this._stats = null, this._loading = !0, this._error = "", this.consumeContext(z, (a) => {
       this._authContext = a, this._fetchStats();
     });
   }
@@ -16,20 +19,20 @@ let s = class extends g(d) {
     this._loading = !0, this._error = "";
     const a = await this._authContext?.getLatestToken();
     if (!a) {
-      this._error = "No authentication token available.", this._loading = !1;
+      this._error = s(this, t, e).call(this, "noAuthToken"), this._loading = !1;
       return;
     }
     try {
-      const e = await fetch("/umbraco/management/api/v1/snapshot/storage-stats", {
+      const i = await fetch("/umbraco/management/api/v1/snapshot/storage-stats", {
         method: "GET",
         headers: {
           Authorization: `Bearer ${a}`,
           "Content-Type": "application/json"
         }
       });
-      e.ok ? this._stats = await e.json() : e.status === 401 ? this._error = "Unauthorized. Your session may have expired." : this._error = "Failed to load storage statistics.";
-    } catch (e) {
-      console.error("Failed to fetch storage stats:", e), this._error = "An error occurred while loading storage statistics.";
+      i.ok ? this._stats = await i.json() : i.status === 401 ? this._error = s(this, t, e).call(this, "dashboardUnauthorized") : this._error = s(this, t, e).call(this, "dashboardLoadFailed");
+    } catch (i) {
+      console.error("Failed to fetch storage stats:", i), this._error = s(this, t, e).call(this, "dashboardLoadError");
     } finally {
       this._loading = !1;
     }
@@ -49,56 +52,56 @@ let s = class extends g(d) {
    */
   _renderFolderCell(a) {
     if (a.mediaKey) {
-      const e = `/umbraco/section/media/workspace/media/edit/${a.mediaKey}`;
-      return t`
-                <a class="media-link" href="${e}" title="Open ${a.mediaName || a.folderName} in media editor">
+      const i = `/umbraco/section/media/workspace/media/edit/${a.mediaKey}`, l = a.mediaName || a.folderName;
+      return o`
+                <a class="media-link" href="${i}" title="${s(this, t, e).call(this, "dashboardOpenInEditor").replace("{0}", l)}">
                     <uui-icon name="icon-picture"></uui-icon>
-                    <span class="media-link-name">${a.mediaName || a.folderName}</span>
+                    <span class="media-link-name">${l}</span>
                     <code class="folder-name-sub">${a.folderName}</code>
                 </a>
             `;
     }
-    return t`
-            <span class="folder-unresolved" title="Media item not found — folder may be orphaned">
+    return o`
+            <span class="folder-unresolved" title="${s(this, t, e).call(this, "dashboardOrphanedTitle")}">
                 <code class="folder-name">${a.folderName}</code>
-                <uui-tag look="secondary" color="warning">Orphaned</uui-tag>
+                <uui-tag look="secondary" color="warning">${s(this, t, e).call(this, "dashboardOrphaned")}</uui-tag>
             </span>
         `;
   }
   render() {
     if (this._loading)
-      return t`
+      return o`
                 <div class="dashboard-loading">
                     <uui-loader></uui-loader>
-                    Loading snapshot storage statistics...
+                    ${s(this, t, e).call(this, "dashboardLoading")}
                 </div>
             `;
     if (this._error)
-      return t`
+      return o`
                 <uui-box>
                     <div class="dashboard-error">
                         <uui-icon name="icon-alert"></uui-icon>
                         <span>${this._error}</span>
                         <uui-button look="primary" compact @click="${this._fetchStats}">
-                            <uui-icon name="icon-refresh"></uui-icon> Retry
+                            <uui-icon name="icon-refresh"></uui-icon> ${s(this, t, e).call(this, "dashboardRetry")}
                         </uui-button>
                     </div>
                 </uui-box>
             `;
-    const a = this._stats;
-    return t`
+    const a = this._stats, i = a.settings.sasTokenExpirationHours;
+    return o`
             <div class="dashboard">
                 <!-- Header -->
                 <div class="dashboard-header">
                     <div>
                         <h2>
                             <uui-icon name="icon-history"></uui-icon>
-                            Snapshot Storage
+                            ${s(this, t, e).call(this, "dashboardTitle")}
                         </h2>
-                        <p class="dashboard-subtitle">Overview of media snapshot storage usage in Azure Blob Storage</p>
+                        <p class="dashboard-subtitle">${s(this, t, e).call(this, "dashboardSubtitle")}</p>
                     </div>
                     <uui-button look="secondary" compact @click="${this._fetchStats}">
-                        <uui-icon name="icon-refresh"></uui-icon> Refresh
+                        <uui-icon name="icon-refresh"></uui-icon> ${s(this, t, e).call(this, "dashboardRefresh")}
                     </uui-button>
                 </div>
 
@@ -111,7 +114,7 @@ let s = class extends g(d) {
                             </div>
                             <div class="stat-content">
                                 <span class="stat-value">${a.totalSnapshotCount.toLocaleString()}</span>
-                                <span class="stat-label">Total Snapshots</span>
+                                <span class="stat-label">${s(this, t, e).call(this, "dashboardTotalSnapshots")}</span>
                             </div>
                         </div>
                     </uui-box>
@@ -122,7 +125,7 @@ let s = class extends g(d) {
                             </div>
                             <div class="stat-content">
                                 <span class="stat-value">${a.totalSizeFormatted}</span>
-                                <span class="stat-label">Total Storage Used</span>
+                                <span class="stat-label">${s(this, t, e).call(this, "dashboardTotalStorage")}</span>
                             </div>
                         </div>
                     </uui-box>
@@ -133,7 +136,7 @@ let s = class extends g(d) {
                             </div>
                             <div class="stat-content">
                                 <span class="stat-value">${a.mediaItemCount.toLocaleString()}</span>
-                                <span class="stat-label">Media Items with Snapshots</span>
+                                <span class="stat-label">${s(this, t, e).call(this, "dashboardMediaItems")}</span>
                             </div>
                         </div>
                     </uui-box>
@@ -146,39 +149,39 @@ let s = class extends g(d) {
                                 <span class="stat-value">
                                     ${a.totalSnapshotCount > 0 && a.mediaItemCount > 0 ? (a.totalSnapshotCount / a.mediaItemCount).toFixed(1) : "0"}
                                 </span>
-                                <span class="stat-label">Avg Snapshots per Media</span>
+                                <span class="stat-label">${s(this, t, e).call(this, "dashboardAvgSnapshots")}</span>
                             </div>
                         </div>
                     </uui-box>
                 </div>
 
                 <!-- Top Consumers -->
-                <uui-box headline="Top Storage Consumers">
-                    ${a.topConsumers.length === 0 ? t`
+                <uui-box headline="${s(this, t, e).call(this, "dashboardTopConsumers")}">
+                    ${a.topConsumers.length === 0 ? o`
                             <div class="empty-state">
                                 <uui-icon name="icon-folder" style="font-size: 2rem; color: var(--uui-color-text-alt);"></uui-icon>
-                                <p>No snapshots found in storage.</p>
+                                <p>${s(this, t, e).call(this, "dashboardNoSnapshots")}</p>
                             </div>
-                        ` : t`
+                        ` : o`
                             <uui-table>
                                 <uui-table-head>
                                     <uui-table-head-cell style="width: 40px;">#</uui-table-head-cell>
-                                    <uui-table-head-cell>Media Item</uui-table-head-cell>
-                                    <uui-table-head-cell>Snapshots</uui-table-head-cell>
-                                    <uui-table-head-cell>Storage Used</uui-table-head-cell>
-                                    <uui-table-head-cell>Latest Snapshot</uui-table-head-cell>
-                                    <uui-table-head-cell>Oldest Snapshot</uui-table-head-cell>
+                                    <uui-table-head-cell>${s(this, t, e).call(this, "dashboardMediaItem")}</uui-table-head-cell>
+                                    <uui-table-head-cell>${s(this, t, e).call(this, "snapshots")}</uui-table-head-cell>
+                                    <uui-table-head-cell>${s(this, t, e).call(this, "dashboardStorageUsed")}</uui-table-head-cell>
+                                    <uui-table-head-cell>${s(this, t, e).call(this, "dashboardLatestSnapshot")}</uui-table-head-cell>
+                                    <uui-table-head-cell>${s(this, t, e).call(this, "dashboardOldestSnapshot")}</uui-table-head-cell>
                                 </uui-table-head>
-                                ${a.topConsumers.map((e, o) => t`
+                                ${a.topConsumers.map((l, n) => o`
                                     <uui-table-row>
                                         <uui-table-cell>
-                                            <span class="rank-badge">${o + 1}</span>
+                                            <span class="rank-badge">${n + 1}</span>
                                         </uui-table-cell>
-                                        <uui-table-cell>${this._renderFolderCell(e)}</uui-table-cell>
-                                        <uui-table-cell>${e.snapshotCount}</uui-table-cell>
-                                        <uui-table-cell>${e.totalSizeFormatted}</uui-table-cell>
-                                        <uui-table-cell>${this._formatDate(e.latestSnapshotDate)}</uui-table-cell>
-                                        <uui-table-cell>${this._formatDate(e.oldestSnapshotDate)}</uui-table-cell>
+                                        <uui-table-cell>${this._renderFolderCell(l)}</uui-table-cell>
+                                        <uui-table-cell>${l.snapshotCount}</uui-table-cell>
+                                        <uui-table-cell>${l.totalSizeFormatted}</uui-table-cell>
+                                        <uui-table-cell>${this._formatDate(l.latestSnapshotDate)}</uui-table-cell>
+                                        <uui-table-cell>${this._formatDate(l.oldestSnapshotDate)}</uui-table-cell>
                                     </uui-table-row>
                                 `)}
                             </uui-table>
@@ -186,35 +189,35 @@ let s = class extends g(d) {
                 </uui-box>
 
                 <!-- Current Settings -->
-                <uui-box headline="Active Configuration">
+                <uui-box headline="${s(this, t, e).call(this, "dashboardActiveConfig")}">
                     <div class="settings-grid">
                         <div class="setting-item">
-                            <span class="setting-label">Max Snapshots per Media</span>
+                            <span class="setting-label">${s(this, t, e).call(this, "dashboardMaxPerMedia")}</span>
                             <span class="setting-value">
-                                ${a.settings.maxSnapshotsPerMedia === 0 ? t`<uui-tag look="secondary">Unlimited</uui-tag>` : a.settings.maxSnapshotsPerMedia}
+                                ${a.settings.maxSnapshotsPerMedia === 0 ? o`<uui-tag look="secondary">${s(this, t, e).call(this, "dashboardUnlimited")}</uui-tag>` : a.settings.maxSnapshotsPerMedia}
                             </span>
                         </div>
                         <div class="setting-item">
-                            <span class="setting-label">Max Snapshot Age</span>
+                            <span class="setting-label">${s(this, t, e).call(this, "dashboardMaxAge")}</span>
                             <span class="setting-value">
-                                ${a.settings.maxSnapshotAgeDays === 0 ? t`<uui-tag look="secondary">Never expires</uui-tag>` : `${a.settings.maxSnapshotAgeDays} days`}
+                                ${a.settings.maxSnapshotAgeDays === 0 ? o`<uui-tag look="secondary">${s(this, t, e).call(this, "dashboardNeverExpires")}</uui-tag>` : `${a.settings.maxSnapshotAgeDays} ${s(this, t, e).call(this, "dashboardDays")}`}
                             </span>
                         </div>
                         <div class="setting-item">
-                            <span class="setting-label">Automatic Cleanup</span>
+                            <span class="setting-label">${s(this, t, e).call(this, "dashboardAutoCleanup")}</span>
                             <span class="setting-value">
-                                ${a.settings.enableAutomaticCleanup ? t`<uui-tag look="primary" color="positive">Enabled</uui-tag>` : t`<uui-tag look="primary" color="danger">Disabled</uui-tag>`}
+                                ${a.settings.enableAutomaticCleanup ? o`<uui-tag look="primary" color="positive">${s(this, t, e).call(this, "dashboardEnabled")}</uui-tag>` : o`<uui-tag look="primary" color="danger">${s(this, t, e).call(this, "dashboardDisabled")}</uui-tag>`}
                             </span>
                         </div>
                         <div class="setting-item">
-                            <span class="setting-label">SAS Token Expiration</span>
-                            <span class="setting-value">${a.settings.sasTokenExpirationHours} hour${a.settings.sasTokenExpirationHours !== 1 ? "s" : ""}</span>
+                            <span class="setting-label">${s(this, t, e).call(this, "dashboardSasExpiration")}</span>
+                            <span class="setting-value">${i} ${i !== 1 ? s(this, t, e).call(this, "dashboardHours") : s(this, t, e).call(this, "dashboardHour")}</span>
                         </div>
                         <div class="setting-item">
-                            <span class="setting-label">Tracked Media Types</span>
+                            <span class="setting-label">${s(this, t, e).call(this, "dashboardTrackedTypes")}</span>
                             <span class="setting-value setting-value-tags">
-                                ${a.settings.trackedMediaTypes.map((e) => t`
-                                    <uui-tag look="primary">${e}</uui-tag>
+                                ${a.settings.trackedMediaTypes.map((l) => o`
+                                    <uui-tag look="primary">${l}</uui-tag>
                                 `)}
                             </span>
                         </div>
@@ -224,7 +227,12 @@ let s = class extends g(d) {
         `;
   }
 };
-s.styles = p`
+m = /* @__PURE__ */ new WeakMap();
+t = /* @__PURE__ */ new WeakSet();
+e = function(a) {
+  return w(this, m).term(`umbracoMediaSnapshot_${a}`);
+};
+u.styles = x`
         :host {
             display: block;
             padding: var(--uui-size-space-5);
@@ -441,19 +449,19 @@ s.styles = p`
             }
         }
     `;
-l([
-  c()
-], s.prototype, "_stats", 2);
-l([
-  c()
-], s.prototype, "_loading", 2);
-l([
-  c()
-], s.prototype, "_error", 2);
-s = l([
-  m("snapshot-dashboard")
-], s);
+d([
+  p()
+], u.prototype, "_stats", 2);
+d([
+  p()
+], u.prototype, "_loading", 2);
+d([
+  p()
+], u.prototype, "_error", 2);
+u = d([
+  y("snapshot-dashboard")
+], u);
 export {
-  s as SnapshotDashboardElement
+  u as SnapshotDashboardElement
 };
 //# sourceMappingURL=umbraco-media-snapshot2.js.map

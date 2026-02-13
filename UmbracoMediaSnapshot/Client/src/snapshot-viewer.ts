@@ -1,5 +1,6 @@
 ﻿import { LitElement, html, css, customElement, state } from '@umbraco-cms/backoffice/external/lit';
 import { UmbElementMixin } from '@umbraco-cms/backoffice/element-api';
+import { UmbLocalizationController } from '@umbraco-cms/backoffice/localization-api';
 import { UMB_WORKSPACE_CONTEXT } from '@umbraco-cms/backoffice/workspace';
 import { UMB_AUTH_CONTEXT } from '@umbraco-cms/backoffice/auth';
 import { UMB_NOTIFICATION_CONTEXT } from '@umbraco-cms/backoffice/notification';
@@ -15,6 +16,13 @@ import type { UmbModalManagerContext } from '@umbraco-cms/backoffice/modal';
  */
 @customElement('snapshot-viewer')
 export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
+
+    readonly #localize = new UmbLocalizationController(this);
+
+    /** Shorthand for localize.term with the package prefix */
+    #t(key: string): string {
+        return this.#localize.term(`umbracoMediaSnapshot_${key}`);
+    }
 
     @state()
     private _versions: any[] = [];
@@ -106,17 +114,14 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
     constructor() {
         super();
 
-        // 1. Consume the Auth Context to manage tokens
         this.consumeContext(UMB_AUTH_CONTEXT, (instance) => {
             this._authContext = instance;
         });
 
-        // Consume the Notification Context
         this.consumeContext(UMB_NOTIFICATION_CONTEXT, (instance) => {
             this._notificationContext = instance;
         });
 
-        // Consume the Modal Manager Context
         this.consumeContext(UMB_MODAL_MANAGER_CONTEXT, (instance) => {
             this._modalManagerContext = instance;
         });
@@ -148,8 +153,8 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
 
         if (!token) {
             console.error("No authentication token available.");
-            this._notificationContext?.peek('danger', { 
-                data: { headline: 'Authentication Error', message: 'No authentication token available.' } 
+            this._notificationContext?.peek('danger', {
+                data: { headline: this.#t('authError'), message: this.#t('noAuthToken') }
             });
             this._loading = false;
             return;
@@ -180,14 +185,14 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                 this._selectedSnapshots = new Set();
             } else if (response.status === 401) {
                 console.error("Unauthorized: The session may have expired.");
-                this._notificationContext?.peek('danger', { 
-                    data: { headline: 'Unauthorized', message: 'The session may have expired.' } 
+                this._notificationContext?.peek('danger', {
+                    data: { headline: this.#t('unauthorized'), message: this.#t('sessionExpired') }
                 });
             }
         } catch (error) {
             console.error("Failed to fetch snapshots:", error);
-            this._notificationContext?.peek('danger', { 
-                data: { headline: 'Error', message: 'Failed to fetch snapshots.' } 
+            this._notificationContext?.peek('danger', {
+                data: { headline: this.#t('error'), message: this.#t('failedToFetchSnapshots') }
             });
         } finally {
             this._loading = false;
@@ -337,11 +342,11 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
     private _getPreviewTitle(): string {
         switch (this._getFileType(this._previewImageName)) {
             case 'image':
-            case 'svg': return 'Image Preview';
-            case 'video': return 'Video Preview';
-            case 'audio': return 'Audio Preview';
-            case 'pdf': return 'PDF Preview';
-            default: return 'File Preview';
+            case 'svg': return this.#t('imagePreview');
+            case 'video': return this.#t('videoPreview');
+            case 'audio': return this.#t('audioPreview');
+            case 'pdf': return this.#t('pdfPreview');
+            default: return this.#t('filePreview');
         }
     }
 
@@ -364,7 +369,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                         alt="${this._previewImageName}"
                         @error="${() => {
                             this._notificationContext?.peek('warning', {
-                                data: { headline: 'Preview Error', message: 'Unable to load image preview' }
+                                data: { headline: this.#t('previewError'), message: this.#t('unableToLoadImagePreview') }
                             });
                         }}"
                     />
@@ -378,11 +383,11 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                         class="preview-video"
                         @error="${() => {
                             this._notificationContext?.peek('warning', {
-                                data: { headline: 'Preview Error', message: 'Unable to load video preview' }
+                                data: { headline: this.#t('previewError'), message: this.#t('unableToLoadVideoPreview') }
                             });
                         }}">
                         <source src="${this._previewImageUrl}" />
-                        Your browser does not support video playback.
+                        ${this.#t('videoNotSupported')}
                     </video>
                 `;
 
@@ -396,11 +401,11 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                             class="preview-audio"
                             @error="${() => {
                                 this._notificationContext?.peek('warning', {
-                                    data: { headline: 'Preview Error', message: 'Unable to load audio preview' }
+                                    data: { headline: this.#t('previewError'), message: this.#t('unableToLoadAudioPreview') }
                                 });
                             }}">
                             <source src="${this._previewImageUrl}" />
-                            Your browser does not support audio playback.
+                            ${this.#t('audioNotSupported')}
                         </audio>
                     </div>
                 `;
@@ -410,10 +415,10 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                     <iframe
                         src="${this._previewImageUrl}"
                         class="preview-pdf"
-                        title="PDF Preview: ${this._previewImageName}"
+                        title="${this.#t('pdfPreview')}: ${this._previewImageName}"
                         @error="${() => {
                             this._notificationContext?.peek('warning', {
-                                data: { headline: 'Preview Error', message: 'Unable to load PDF preview' }
+                                data: { headline: this.#t('previewError'), message: this.#t('unableToLoadPdfPreview') }
                             });
                         }}">
                     </iframe>
@@ -423,7 +428,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                 return html`
                     <div class="preview-unsupported">
                         <uui-icon name="icon-document"></uui-icon>
-                        <p>Preview not available for this file type.</p>
+                        <p>${this.#t('previewNotAvailable')}</p>
                     </div>
                 `;
         }
@@ -500,18 +505,18 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
 
         const modalHandler = this._modalManagerContext.open(this, UMB_CONFIRM_MODAL, {
             data: {
-                headline: 'Delete Snapshot',
+                headline: this.#t('deleteSnapshotHeadline'),
                 content: html`
-                    <p>Are you sure you want to permanently delete <strong>"${version.name}"</strong>?</p>
+                    <p>${this.#t('areYouSureDelete')} <strong>"${version.name}"</strong>?</p>
                     <uui-box>
                         <p style="margin: 0;">
                             <uui-icon name="icon-alert"></uui-icon>
-                            <strong>Warning:</strong> This action cannot be undone. The snapshot will be permanently removed from storage.
+                            <strong>${this.#t('warning')}:</strong> ${this.#t('deleteWarning')}
                         </p>
                     </uui-box>
                 `,
                 color: 'danger',
-                confirmLabel: 'Delete'
+                confirmLabel: this.#t('delete')
             }
         });
 
@@ -525,8 +530,8 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
 
         const token = await this._authContext?.getLatestToken();
         if (!token) {
-            this._notificationContext?.peek('danger', { 
-                data: { headline: 'Authentication Error', message: 'No authentication token available.' } 
+            this._notificationContext?.peek('danger', {
+                data: { headline: this.#t('authError'), message: this.#t('noAuthToken') }
             });
             this._isDeleting = false;
             return;
@@ -547,24 +552,24 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
 
             if (response.ok) {
                 const result = await response.json();
-                this._notificationContext?.peek('positive', { 
-                    data: { headline: 'Snapshot Deleted', message: result.message } 
+                this._notificationContext?.peek('positive', {
+                    data: { headline: this.#t('snapshotDeleted'), message: result.message }
                 });
                 await this._fetchVersions(this._mediaKey);
             } else if (response.status === 401) {
-                this._notificationContext?.peek('danger', { 
-                    data: { headline: 'Unauthorized', message: 'Your session may have expired. Please refresh the page.' } 
+                this._notificationContext?.peek('danger', {
+                    data: { headline: this.#t('unauthorized'), message: this.#t('sessionExpired') }
                 });
             } else {
                 const error = await response.json();
-                this._notificationContext?.peek('danger', { 
-                    data: { headline: 'Delete Failed', message: error.detail || 'Unknown error' } 
+                this._notificationContext?.peek('danger', {
+                    data: { headline: this.#t('deleteFailed'), message: error.detail || this.#t('unknownError') }
                 });
             }
         } catch (error) {
             console.error("Failed to delete snapshot:", error);
-            this._notificationContext?.peek('danger', { 
-                data: { headline: 'Error', message: 'An error occurred while deleting the snapshot.' } 
+            this._notificationContext?.peek('danger', {
+                data: { headline: this.#t('error'), message: this.#t('errorDeletingSnapshot') }
             });
         } finally {
             this._isDeleting = false;
@@ -585,18 +590,18 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
         const count = this._selectedSnapshots.size;
         const modalHandler = this._modalManagerContext.open(this, UMB_CONFIRM_MODAL, {
             data: {
-                headline: 'Delete Selected Snapshots',
+                headline: this.#t('deleteSelectedHeadline'),
                 content: html`
-                    <p>Are you sure you want to permanently delete <strong>${count} snapshot${count > 1 ? 's' : ''}</strong>?</p>
+                    <p>${this.#t('areYouSureDelete')} <strong>${count} ${count > 1 ? this.#t('snapshots') : this.#t('snapshot')}</strong>?</p>
                     <uui-box>
                         <p style="margin: 0;">
                             <uui-icon name="icon-alert"></uui-icon>
-                            <strong>Warning:</strong> This action cannot be undone. All selected snapshots will be permanently removed from storage.
+                            <strong>${this.#t('warning')}:</strong> ${this.#t('deleteSelectedWarning')}
                         </p>
                     </uui-box>
                 `,
                 color: 'danger',
-                confirmLabel: `Delete ${count} Snapshot${count > 1 ? 's' : ''}`
+                confirmLabel: `${this.#t('delete')} ${count} ${count > 1 ? this.#t('snapshots') : this.#t('snapshot')}`
             }
         });
 
@@ -610,8 +615,8 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
 
         const token = await this._authContext?.getLatestToken();
         if (!token) {
-            this._notificationContext?.peek('danger', { 
-                data: { headline: 'Authentication Error', message: 'No authentication token available.' } 
+            this._notificationContext?.peek('danger', {
+                data: { headline: this.#t('authError'), message: this.#t('noAuthToken') }
             });
             this._isDeleting = false;
             return;
@@ -632,24 +637,24 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
 
             if (response.ok) {
                 const result = await response.json();
-                this._notificationContext?.peek('positive', { 
-                    data: { headline: 'Snapshots Deleted', message: result.message } 
+                this._notificationContext?.peek('positive', {
+                    data: { headline: this.#t('snapshotsDeleted'), message: result.message }
                 });
                 await this._fetchVersions(this._mediaKey);
             } else if (response.status === 401) {
-                this._notificationContext?.peek('danger', { 
-                    data: { headline: 'Unauthorized', message: 'Your session may have expired. Please refresh the page.' } 
+                this._notificationContext?.peek('danger', {
+                    data: { headline: this.#t('unauthorized'), message: this.#t('sessionExpired') }
                 });
             } else {
                 const error = await response.json();
-                this._notificationContext?.peek('danger', { 
-                    data: { headline: 'Bulk Delete Failed', message: error.detail || 'Unknown error' } 
+                this._notificationContext?.peek('danger', {
+                    data: { headline: this.#t('bulkDeleteFailed'), message: error.detail || this.#t('unknownError') }
                 });
             }
         } catch (error) {
             console.error("Failed to bulk delete snapshots:", error);
-            this._notificationContext?.peek('danger', { 
-                data: { headline: 'Error', message: 'An error occurred while deleting snapshots.' } 
+            this._notificationContext?.peek('danger', {
+                data: { headline: this.#t('error'), message: this.#t('errorDeletingSnapshots') }
             });
         } finally {
             this._isDeleting = false;
@@ -675,19 +680,19 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
         const modalHandler = this._modalManagerContext.open(this, UMB_CONFIRM_MODAL, {
             data:
                 {
-                    headline: 'Restore File Version',
+                    headline: this.#t('restoreHeadline'),
                     content: html`
-                        <p>Are you sure you want to restore <strong>"${version.name}"</strong>?</p>
-                        <p>This will replace the current file and create a new snapshot.</p>
+                        <p>${this.#t('areYouSureRestore')} <strong>"${version.name}"</strong>?</p>
+                        <p>${this.#t('restoreDescription')}</p>
                         <uui-box>
                             <p style="margin: 0;">
                                 <uui-icon name="icon-alert"></uui-icon>
-                                <strong>Warning:</strong> This action cannot be undone.
+                                <strong>${this.#t('warning')}:</strong> ${this.#t('restoreWarning')}
                             </p>
                         </uui-box>
                     `,
                     color: 'danger',
-                    confirmLabel: 'Restore'
+                    confirmLabel: this.#t('restore')
                 }
         });
 
@@ -704,8 +709,8 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
 
         const token = await this._authContext?.getLatestToken();
         if (!token) {
-            this._notificationContext?.peek('danger', { 
-                data: { headline: 'Authentication Error', message: 'No authentication token available.' } 
+            this._notificationContext?.peek('danger', {
+                data: { headline: this.#t('authError'), message: this.#t('noAuthToken') }
             });
             this._isRestoring = false;
             return;
@@ -729,9 +734,9 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                 const result = await response.json();
                 
                 // Use Umbraco notification instead of alert
-                this._notificationContext?.peek('positive', { 
+                this._notificationContext?.peek('positive', {
                     data: { 
-                        headline: 'Snapshot Restored', 
+                        headline: this.#t('snapshotRestored'), 
                         message: result.message 
                     } 
                 });
@@ -739,34 +744,34 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                 // Refresh the version list
                 await this._fetchVersions(this._mediaKey);
             } else if (response.status === 409) {
-                this._notificationContext?.peek('warning', { 
+                this._notificationContext?.peek('warning', {
                     data: { 
-                        headline: 'Restore in Progress', 
-                        message: 'Another restore is already running for this media item. Please wait and try again.' 
+                        headline: this.#t('restoreInProgress'), 
+                        message: this.#t('restoreInProgressMessage') 
                     } 
                 });
             } else if (response.status === 401) {
-                this._notificationContext?.peek('danger', { 
+                this._notificationContext?.peek('danger', {
                     data: { 
-                        headline: 'Unauthorized', 
-                        message: 'Your session may have expired. Please refresh the page.' 
+                        headline: this.#t('unauthorized'), 
+                        message: this.#t('sessionExpired') 
                     } 
                 });
             } else {
                 const error = await response.json();
-                this._notificationContext?.peek('danger', { 
+                this._notificationContext?.peek('danger', {
                     data: { 
-                        headline: 'Restore Failed', 
-                        message: error.detail || 'Unknown error' 
+                        headline: this.#t('restoreFailed'), 
+                        message: error.detail || this.#t('unknownError') 
                     } 
                 });
             }
         } catch (error) {
             console.error("Failed to restore snapshot:", error);
-            this._notificationContext?.peek('danger', { 
+            this._notificationContext?.peek('danger', {
                 data: { 
-                    headline: 'Error', 
-                    message: 'An error occurred while restoring the snapshot. Please try again.' 
+                    headline: this.#t('error'), 
+                    message: this.#t('errorRestoringSnapshot') 
                 } 
             });
         } finally {
@@ -791,13 +796,13 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
     private _renderStatus(version: any, index: number) {
         const badges = [];
         if (version.isPinned) {
-            badges.push(html`<uui-tag class="status-badge" look="primary" color="warning">Pinned</uui-tag>`);
+            badges.push(html`<uui-tag class="status-badge" look="primary" color="warning">${this.#t('pinned')}</uui-tag>`);
         }
         if (version.isRestored) {
-            badges.push(html`<uui-tag class="status-badge" look="primary" color="positive">Restored</uui-tag>`);
+            badges.push(html`<uui-tag class="status-badge" look="primary" color="positive">${this.#t('restored')}</uui-tag>`);
         }
         if (index === 0) {
-            badges.push(html`<uui-tag class="status-badge" look="primary" color="default">Latest</uui-tag>`);
+            badges.push(html`<uui-tag class="status-badge" look="primary" color="default">${this.#t('latest')}</uui-tag>`);
         }
         return badges;
     }
@@ -819,7 +824,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                 <div class="preview-header">
                     <h3>
                         <uui-icon name="icon-split"></uui-icon>
-                        Compare Versions
+                        ${this.#t('compareVersions')}
                     </h3>
                     <div style="display: flex; gap: 8px; align-items: center;">
                         ${bothAreImages ? html`
@@ -827,9 +832,9 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                                 look="secondary"
                                 compact
                                 @click="${this._toggleComparisonMode}"
-                                title="Toggle comparison mode">
+                                title="${this.#t('toggleComparisonMode')}">
                                 <uui-icon name="${this._comparisonMode === 'side-by-side' ? 'icon-layers-alt' : 'icon-split'}"></uui-icon>
-                                ${this._comparisonMode === 'side-by-side' ? 'Slider' : 'Side-by-Side'}
+                                ${this._comparisonMode === 'side-by-side' ? this.#t('slider') : this.#t('sideBySide')}
                             </uui-button>
                         ` : ''}
                         <uui-button
@@ -842,9 +847,9 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                 </div>
                 <div class="comparison-content">
                     ${this._comparisonLoading
-                        ? html`<div class="loader"><uui-loader></uui-loader> Loading current file...</div>`
+                        ? html`<div class="loader"><uui-loader></uui-loader> ${this.#t('loadingCurrentFile')}</div>`
                         : !current
-                            ? html`<uui-box><p>Unable to load the current media file for comparison.</p></uui-box>`
+                            ? html`<uui-box><p>${this.#t('unableToLoadCurrent')}</p></uui-box>`
                             : bothAreImages
                                 ? this._renderImageComparison(current, snapshot)
                                 : this._renderMetadataComparison(current, snapshot)
@@ -862,9 +867,9 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
             return html`
                 <div class="slider-comparison">
                     <div class="slider-container">
-                        <img class="slider-img-under" src="${current.url}" alt="Current" />
+                        <img class="slider-img-under" src="${current.url}" alt="${this.#t('current')}" />
                         <div class="slider-img-over" style="width: ${this._sliderPosition}%;">
-                            <img src="${snapshot.url}" alt="Snapshot" />
+                            <img src="${snapshot.url}" alt="${this.#t('snapshot')}" />
                         </div>
                         <div class="slider-handle" style="left: ${this._sliderPosition}%;">
                             <div class="slider-handle-line"></div>
@@ -879,8 +884,8 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                         />
                     </div>
                     <div class="slider-labels">
-                        <span><uui-tag look="primary" color="default">Snapshot</uui-tag> ${snapshot.name}</span>
-                        <span><uui-tag look="primary" color="positive">Current</uui-tag> ${current.name}</span>
+                        <span><uui-tag look="primary" color="default">${this.#t('snapshot')}</uui-tag> ${snapshot.name}</span>
+                        <span><uui-tag look="primary" color="positive">${this.#t('current')}</uui-tag> ${current.name}</span>
                     </div>
                 </div>
                 ${this._renderMetadataComparison(current, snapshot)}
@@ -891,7 +896,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
             <div class="side-by-side">
                 <div class="compare-column">
                     <div class="compare-label">
-                        <uui-tag look="primary" color="default">Snapshot</uui-tag>
+                        <uui-tag look="primary" color="default">${this.#t('snapshot')}</uui-tag>
                         <span class="compare-filename">${snapshot.name}</span>
                     </div>
                     <div class="compare-image-container">
@@ -901,7 +906,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                 <div class="compare-divider"></div>
                 <div class="compare-column">
                     <div class="compare-label">
-                        <uui-tag look="primary" color="positive">Current</uui-tag>
+                        <uui-tag look="primary" color="positive">${this.#t('current')}</uui-tag>
                         <span class="compare-filename">${current.name}</span>
                     </div>
                     <div class="compare-image-container">
@@ -922,31 +927,31 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
             ? `+${this._formatSize(sizeDiff)}`
             : sizeDiff < 0
                 ? `-${this._formatSize(Math.abs(sizeDiff))}`
-                : 'No change';
+                : this.#t('noChange');
 
         return html`
             <div class="metadata-comparison">
-                <h4>File Details</h4>
+                <h4>${this.#t('fileDetails')}</h4>
                 <uui-table>
                     <uui-table-head>
-                        <uui-table-head-cell>Property</uui-table-head-cell>
-                        <uui-table-head-cell>Snapshot</uui-table-head-cell>
-                        <uui-table-head-cell>Current</uui-table-head-cell>
-                        <uui-table-head-cell>Difference</uui-table-head-cell>
+                        <uui-table-head-cell>${this.#t('property')}</uui-table-head-cell>
+                        <uui-table-head-cell>${this.#t('snapshot')}</uui-table-head-cell>
+                        <uui-table-head-cell>${this.#t('current')}</uui-table-head-cell>
+                        <uui-table-head-cell>${this.#t('difference')}</uui-table-head-cell>
                     </uui-table-head>
                     <uui-table-row>
-                        <uui-table-cell><strong>Filename</strong></uui-table-cell>
+                        <uui-table-cell><strong>${this.#t('filename')}</strong></uui-table-cell>
                         <uui-table-cell>${snapshot.name}</uui-table-cell>
                         <uui-table-cell>${current.name}</uui-table-cell>
                         <uui-table-cell>
                             ${snapshot.name === current.name
-                                ? html`<uui-tag look="secondary" color="default">Same</uui-tag>`
-                                : html`<uui-tag look="primary" color="warning">Changed</uui-tag>`
+                                ? html`<uui-tag look="secondary" color="default">${this.#t('same')}</uui-tag>`
+                                : html`<uui-tag look="primary" color="warning">${this.#t('changed')}</uui-tag>`
                             }
                         </uui-table-cell>
                     </uui-table-row>
                     <uui-table-row>
-                        <uui-table-cell><strong>File Size</strong></uui-table-cell>
+                        <uui-table-cell><strong>${this.#t('fileSize')}</strong></uui-table-cell>
                         <uui-table-cell>${this._formatSize(snapshot.size)}</uui-table-cell>
                         <uui-table-cell>${this._formatSize(current.size)}</uui-table-cell>
                         <uui-table-cell>
@@ -956,14 +961,14 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                         </uui-table-cell>
                     </uui-table-row>
                     <uui-table-row>
-                        <uui-table-cell><strong>Date</strong></uui-table-cell>
+                        <uui-table-cell><strong>${this.#t('date')}</strong></uui-table-cell>
                         <uui-table-cell>${this._formatDate(snapshot.date)}</uui-table-cell>
                         <uui-table-cell>${this._formatDate(current.lastModified)}</uui-table-cell>
                         <uui-table-cell></uui-table-cell>
                     </uui-table-row>
                     ${snapshot.uploader ? html`
                         <uui-table-row>
-                            <uui-table-cell><strong>Uploaded By</strong></uui-table-cell>
+                            <uui-table-cell><strong>${this.#t('uploadedBy')}</strong></uui-table-cell>
                             <uui-table-cell>${snapshot.uploader.replace(/_/g, ' ')}</uui-table-cell>
                             <uui-table-cell>—</uui-table-cell>
                             <uui-table-cell></uui-table-cell>
@@ -985,31 +990,31 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                 <div class="stats-strip-item">
                     <uui-icon name="icon-documents"></uui-icon>
                     <span class="stats-strip-value">${this._totalCount}</span>
-                    <span class="stats-strip-label">Snapshot${this._totalCount !== 1 ? 's' : ''}</span>
+                    <span class="stats-strip-label">${this._totalCount !== 1 ? this.#t('snapshots') : this.#t('snapshot')}</span>
                 </div>
                 <div class="stats-strip-divider"></div>
                 <div class="stats-strip-item">
                     <uui-icon name="icon-server"></uui-icon>
                     <span class="stats-strip-value">${this._formatSize(this._totalSizeBytes)}</span>
-                    <span class="stats-strip-label">Total Size</span>
+                    <span class="stats-strip-label">${this.#t('totalSize')}</span>
                 </div>
                 <div class="stats-strip-divider"></div>
                 <div class="stats-strip-item">
                     <uui-icon name="icon-calendar"></uui-icon>
                     <span class="stats-strip-value">${this._oldestDate ? this._formatDate(this._oldestDate) : '—'}</span>
-                    <span class="stats-strip-label">Oldest</span>
+                    <span class="stats-strip-label">${this.#t('oldest')}</span>
                 </div>
                 <div class="stats-strip-divider"></div>
                 <div class="stats-strip-item">
                     <uui-icon name="icon-calendar"></uui-icon>
                     <span class="stats-strip-value">${this._newestDate ? this._formatDate(this._newestDate) : '—'}</span>
-                    <span class="stats-strip-label">Latest</span>
+                    <span class="stats-strip-label">${this.#t('latest')}</span>
                 </div>
                 <div class="stats-strip-divider"></div>
                 <div class="stats-strip-item">
                     <uui-icon name="icon-users"></uui-icon>
                     <span class="stats-strip-value">${this._uniqueUploaderCount}</span>
-                    <span class="stats-strip-label">Contributor${this._uniqueUploaderCount !== 1 ? 's' : ''}</span>
+                    <span class="stats-strip-label">${this._uniqueUploaderCount !== 1 ? this.#t('contributors') : this.#t('contributor')}</span>
                 </div>
             </div>
         `;
@@ -1017,7 +1022,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
 
     render() {
         if (this._loading) {
-            return html`<div class="loader"><uui-loader></uui-loader> Fetching snapshots...</div>`;
+            return html`<div class="loader"><uui-loader></uui-loader> ${this.#t('fetchingSnapshots')}</div>`;
         }
 
         if (this._versions.length === 0) {
@@ -1025,7 +1030,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                 <uui-box>
                     <div style="display: flex; align-items: center; gap: var(--uui-size-space-3);">
                         <uui-icon name="info" style="color: var(--uui-color-primary);"></uui-icon>
-                        <span>No previous versions found in the snapshots container.</span>
+                        <span>${this.#t('noVersionsFound')}</span>
                     </div>
                 </uui-box>
             `;
@@ -1046,14 +1051,14 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                     <div class="bulk-toolbar">
                         <span class="bulk-toolbar-count">
                             <uui-icon name="icon-check"></uui-icon>
-                            ${this._selectedSnapshots.size} snapshot${this._selectedSnapshots.size > 1 ? 's' : ''} selected
+                            ${this._selectedSnapshots.size} ${this._selectedSnapshots.size > 1 ? this.#t('snapshots') : this.#t('snapshot')} ${this.#t('selected')}
                         </span>
                         <div class="bulk-toolbar-actions">
                             <uui-button
                                 look="secondary"
                                 compact
                                 @click="${this._clearSelection}">
-                                Clear Selection
+                                ${this.#t('clearSelection')}
                             </uui-button>
                             <uui-button
                                 look="primary"
@@ -1062,7 +1067,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                                 ?disabled="${this._isDeleting}"
                                 @click="${this._bulkDeleteSnapshots}">
                                 <uui-icon name="icon-trash"></uui-icon>
-                                ${this._isDeleting ? 'Deleting...' : `Delete ${this._selectedSnapshots.size} Snapshot${this._selectedSnapshots.size > 1 ? 's' : ''}`}
+                                ${this._isDeleting ? this.#t('deleting') : `${this.#t('delete')} ${this._selectedSnapshots.size} ${this._selectedSnapshots.size > 1 ? this.#t('snapshots') : this.#t('snapshot')}`}
                             </uui-button>
                         </div>
                     </div>
@@ -1075,13 +1080,13 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                                 type="checkbox"
                                 .checked="${this._allPageSelected}"
                                 @change="${this._toggleSelectAll}"
-                                title="Select all on this page"
+                                title="${this.#t('selectAllOnPage')}"
                                 class="select-checkbox"
                             />
                         </uui-table-head-cell>
-                        <uui-table-head-cell>Version</uui-table-head-cell>
-                        <uui-table-head-cell>Uploaded</uui-table-head-cell>
-                        <uui-table-head-cell style="text-align: right;">Actions</uui-table-head-cell>
+                        <uui-table-head-cell>${this.#t('version')}</uui-table-head-cell>
+                        <uui-table-head-cell>${this.#t('uploaded')}</uui-table-head-cell>
+                        <uui-table-head-cell style="text-align: right;">${this.#t('actions')}</uui-table-head-cell>
                     </uui-table-head>
 
                     ${this._versions.map((v, i) => {
@@ -1097,7 +1102,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                                         .checked="${isSelected}"
                                         ?disabled="${isLatest}"
                                         @change="${() => this._toggleSelection(v.name)}"
-                                        title="${isLatest ? 'Cannot select the latest version' : 'Select this snapshot'}"
+                                        title="${isLatest ? this.#t('cannotSelectLatest') : this.#t('selectThisSnapshot')}"
                                         class="select-checkbox"
                                     />
                                 </uui-table-cell>
@@ -1111,7 +1116,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                                                     <button
                                                         class="filename-link"
                                                         @click="${() => this._openPreview(v)}"
-                                                        title="Click to preview">
+                                                        title="${this.#t('clickToPreview')}">
                                                         <uui-icon name="${this._getFileIcon(v.name)}"></uui-icon>
                                                         ${v.name}
                                                     </button>
@@ -1141,7 +1146,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                                             look="secondary"
                                             compact
                                             ?disabled="${isLatest}"
-                                            title="${isLatest ? 'This is the latest version' : 'Compare with current file'}"
+                                            title="${isLatest ? this.#t('thisIsLatest') : this.#t('compareWithCurrent')}"
                                             @click="${() => this._openComparison(v)}">
                                             <uui-icon name="icon-split"></uui-icon>
                                         </uui-button>
@@ -1150,7 +1155,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                                             compact
                                             href="${v.url}"
                                             target="_blank"
-                                            title="Download this version">
+                                            title="${this.#t('downloadThisVersion')}">
                                             <uui-icon name="icon-download-alt"></uui-icon>
                                         </uui-button>
                                         <uui-button
@@ -1158,7 +1163,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                                             color="${v.isPinned ? 'warning' : 'default'}"
                                             compact
                                             ?disabled="${this._togglingPin === v.name}"
-                                            title="${v.isPinned ? 'Unpin — allow automatic cleanup' : 'Pin — protect from automatic cleanup'}"
+                                            title="${v.isPinned ? this.#t('unpinAllow') : this.#t('pinProtect')}"
                                             @click="${() => this._togglePin(v)}">
                                             <uui-icon name="icon-pin-location"></uui-icon>
                                         </uui-button>
@@ -1167,7 +1172,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                                             color="positive"
                                             compact
                                             ?disabled="${isSingleVersion || this._isRestoring || isLatest}"
-                                            title="${isSingleVersion ? 'Cannot restore when only one version exists' : isLatest ? 'This is already the latest version' : 'Restore this version'}"
+                                            title="${isSingleVersion ? this.#t('cannotRestoreSingleVersion') : isLatest ? this.#t('alreadyLatest') : this.#t('restoreThisVersion')}"
                                             @click="${() => this._restoreVersion(v)}">
                                             <uui-icon name="icon-refresh"></uui-icon>
                                         </uui-button>
@@ -1176,7 +1181,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                                             color="danger"
                                             compact
                                             ?disabled="${isLatest || this._isDeleting || v.isPinned}"
-                                            title="${v.isPinned ? 'Unpin before deleting' : isLatest ? 'Cannot delete the latest version' : 'Delete this snapshot'}"
+                                            title="${v.isPinned ? this.#t('unpinBeforeDeleting') : isLatest ? this.#t('cannotDeleteLatest') : this.#t('deleteThisSnapshot')}"
                                             @click="${() => this._deleteSnapshot(v)}">
                                             <uui-icon name="icon-trash"></uui-icon>
                                         </uui-button>
@@ -1206,8 +1211,8 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                                 <uui-icon name="${this._getFileIcon(this._previewImageName)}"></uui-icon>
                                 ${this._getPreviewTitle()}
                             </h3>
-                            <uui-button 
-                                look="secondary" 
+                            <uui-button
+                                look="secondary"
                                 compact
                                 @click="${this._closePreview}">
                                 <uui-icon name="icon-delete"></uui-icon>
@@ -1215,23 +1220,23 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                         </div>
                         <div class="preview-content">
                             <div class="preview-filename">
-                                <strong>Filename:</strong> <br/>${this._previewImageName}
+                                <strong>${this.#t('filename')}:</strong> <br/>${this._previewImageName}
                             </div>
                             <div class="preview-media-container">
                                 ${this._renderPreviewContent()}
                             </div>
                             <div class="preview-actions">
-                                <uui-button 
-                                    look="primary" 
-                                    href="${this._previewImageUrl}" 
+                                <uui-button
+                                    look="primary"
+                                    href="${this._previewImageUrl}"
                                     target="_blank">
-                                    <uui-icon name="icon-out"></uui-icon> Open in New Tab
+                                    <uui-icon name="icon-out"></uui-icon> ${this.#t('openInNewTab')}
                                 </uui-button>
-                                <uui-button 
-                                    look="secondary" 
-                                    href="${this._previewImageUrl}" 
+                                <uui-button
+                                    look="secondary"
+                                    href="${this._previewImageUrl}"
                                     download="${this._previewImageName}">
-                                    <uui-icon name="icon-download-alt"></uui-icon> Download
+                                    <uui-icon name="icon-download-alt"></uui-icon> ${this.#t('download')}
                                 </uui-button>
                             </div>
                         </div>
@@ -1284,7 +1289,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
         const token = await this._authContext?.getLatestToken();
         if (!token) {
             this._notificationContext?.peek('danger', {
-                data: { headline: 'Authentication Error', message: 'No authentication token available.' }
+                data: { headline: this.#t('authError'), message: this.#t('noAuthToken') }
             });
             this._savingNote = false;
             return;
@@ -1313,13 +1318,13 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
             } else {
                 const error = await response.json();
                 this._notificationContext?.peek('danger', {
-                    data: { headline: 'Save Failed', message: error.detail || 'Failed to save note' }
+                    data: { headline: this.#t('saveFailed'), message: error.detail || this.#t('failedToSaveNote') }
                 });
             }
         } catch (error) {
             console.error("Failed to save note:", error);
             this._notificationContext?.peek('danger', {
-                data: { headline: 'Error', message: 'An error occurred while saving the note.' }
+                data: { headline: this.#t('error'), message: this.#t('errorSavingNote') }
             });
         } finally {
             this._savingNote = false;
@@ -1351,7 +1356,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                         type="text"
                         class="note-input"
                         maxlength="500"
-                        placeholder="Add a note…"
+                        placeholder="${this.#t('addNotePlaceholder')}"
                         .value="${this._editingNoteValue}"
                         @input="${(e: Event) => this._editingNoteValue = (e.target as HTMLInputElement).value}"
                         @keydown="${(e: KeyboardEvent) => this._onNoteKeydown(e, version)}"
@@ -1377,7 +1382,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
 
         if (version.note) {
             return html`
-                <button class="note-display" @click="${() => this._startEditNote(version)}" title="Click to edit note">
+                <button class="note-display" @click="${() => this._startEditNote(version)}" title="${this.#t('clickToEditNote')}">
                     <uui-icon name="icon-edit"></uui-icon>
                     <span class="note-text">${version.note}</span>
                 </button>
@@ -1385,8 +1390,8 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
         }
 
         return html`
-            <button class="note-add" @click="${() => this._startEditNote(version)}" title="Add a note">
-                <uui-icon name="icon-edit"></uui-icon> Add note
+            <button class="note-add" @click="${() => this._startEditNote(version)}" title="${this.#t('addNoteTitle')}">
+                <uui-icon name="icon-edit"></uui-icon> ${this.#t('addNote')}
             </button>
         `;
     }
@@ -1404,7 +1409,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
         const token = await this._authContext?.getLatestToken();
         if (!token) {
             this._notificationContext?.peek('danger', {
-                data: { headline: 'Authentication Error', message: 'No authentication token available.' }
+                data: { headline: this.#t('authError'), message: this.#t('noAuthToken') }
             });
             this._togglingPin = null;
             return;
@@ -1425,22 +1430,21 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
 
             if (response.ok) {
                 const result = await response.json();
-                // Update local state immediately
                 version.isPinned = result.isPinned;
                 this.requestUpdate();
                 this._notificationContext?.peek('positive', {
-                    data: { headline: result.isPinned ? 'Snapshot Pinned' : 'Snapshot Unpinned', message: result.message }
+                    data: { headline: result.isPinned ? this.#t('snapshotPinned') : this.#t('snapshotUnpinned'), message: result.message }
                 });
             } else {
                 const error = await response.json();
                 this._notificationContext?.peek('danger', {
-                    data: { headline: 'Pin Failed', message: error.detail || 'Failed to update pin state' }
+                    data: { headline: this.#t('pinFailed'), message: error.detail || this.#t('errorTogglingPin') }
                 });
             }
         } catch (error) {
             console.error("Failed to toggle pin:", error);
             this._notificationContext?.peek('danger', {
-                data: { headline: 'Error', message: 'An error occurred while updating the pin state.' }
+                data: { headline: this.#t('error'), message: this.#t('errorTogglingPin') }
             });
         } finally {
             this._togglingPin = null;
@@ -2018,12 +2022,317 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
             font-weight: 500;
         }
 
-        .status-badge {
-            flex-shrink: 0;
-            font-size: 0.7rem;
+        /* Uploaded date and user */
+        .upload-cell {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
         }
 
-        /* Upload cell: date + user stacked */
+        .upload-date {
+            font-size: 0.85rem;
+        }
+
+        .upload-user {
+            font-size: 0.8rem;
+            color: var(--uui-color-text-alt);
+        }
+
+        /* Actions cell: right-aligned icon buttons */
+        .actions-cell {
+            display: flex;
+            gap: 4px;
+            justify-content: flex-end;
+        }
+
+        /* -- Comparison specific styles -- */
+        .comparison-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 80%;
+            max-width: 1000px;
+            background: var(--uui-color-surface);
+            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+            z-index: 1100;
+            display: flex;
+            flex-direction: column;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .comparison-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--uui-size-space-5);
+            border-bottom: 1px solid var(--uui-color-border);
+            background: var(--uui-color-surface-alt);
+        }
+
+        .comparison-header h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: var(--uui-size-space-2);
+        }
+
+        .comparison-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--uui-size-space-5);
+            display: flex;
+            flex-direction: column;
+            gap: var(--uui-size-space-5);
+        }
+
+        .slider-comparison {
+            position: relative;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .slider-container {
+            position: relative;
+            overflow: hidden;
+            border-radius: var(--uui-border-radius);
+            border: 1px solid var(--uui-color-border);
+            background: var(--uui-color-surface-alt);
+        }
+
+        .slider-img-under {
+            display: block;
+            width: 100%;
+            max-height: 400px;
+            object-fit: contain;
+        }
+
+        .slider-img-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            overflow: hidden;
+        }
+
+        .slider-img-over img {
+            display: block;
+            height: 100%;
+            max-height: 400px;
+            object-fit: contain;
+        }
+
+        .slider-handle {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--uui-color-interactive);
+            transform: translateX(-50%);
+            pointer-events: none;
+        }
+
+        .slider-handle-line {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--uui-color-interactive);
+            border: 2px solid var(--uui-color-surface);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .slider-range {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: ew-resize;
+            margin: 0;
+        }
+
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+        }
+
+        .slider-labels span {
+            display: flex;
+            align-items: center;
+            gap: var(--uui-size-space-2);
+        }
+
+        /* Metadata diff table */
+        .metadata-comparison {
+            border-top: 1px solid var(--uui-color-border);
+            padding-top: var(--uui-size-space-4);
+        }
+
+        .metadata-comparison h4 {
+            margin: 0 0 var(--uui-size-space-3) 0;
+            font-size: 1rem;
+        }
+
+        /* Stats strip */
+        .stats-strip {
+            display: flex;
+            align-items: center;
+            gap: var(--uui-size-space-4);
+            padding: var(--uui-size-space-3) var(--uui-size-space-4);
+            margin-bottom: var(--uui-size-space-4);
+            background: var(--uui-color-surface-alt);
+            border: 1px solid var(--uui-color-border);
+            border-radius: var(--uui-border-radius);
+            flex-wrap: wrap;
+        }
+
+        .stats-strip-item {
+            display: flex;
+            align-items: center;
+            gap: var(--uui-size-space-2);
+        }
+
+        .stats-strip-item uui-icon {
+            color: var(--uui-color-primary);
+            font-size: 0.9rem;
+        }
+
+        .stats-strip-value {
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .stats-strip-label {
+            font-size: 0.8rem;
+            color: var(--uui-color-text-alt);
+        }
+
+        .stats-strip-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--uui-color-border);
+        }
+
+        /* Note cell */
+        .note-edit {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .note-input {
+            flex: 1;
+            padding: 4px 8px;
+            border: 1px solid var(--uui-color-border);
+            border-radius: var(--uui-border-radius);
+            font: inherit;
+            font-size: 0.85rem;
+            min-width: 120px;
+            background: var(--uui-color-surface);
+            color: var(--uui-color-text);
+        }
+
+        .note-input:focus {
+            outline: none;
+            border-color: var(--uui-color-interactive);
+            box-shadow: 0 0 0 1px var(--uui-color-interactive);
+        }
+
+        .note-edit-actions {
+            display: flex;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+
+        .note-display {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px 4px;
+            font: inherit;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--uui-color-text);
+            border-radius: var(--uui-border-radius);
+            transition: background 0.2s;
+            max-width: 200px;
+        }
+
+        .note-display:hover {
+            background: var(--uui-color-surface-alt);
+        }
+
+        .note-display uui-icon {
+            color: var(--uui-color-text-alt);
+            font-size: 0.75rem;
+            flex-shrink: 0;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .note-display:hover uui-icon {
+            opacity: 1;
+        }
+
+        .note-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .note-add {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px 4px;
+            font: inherit;
+            font-size: 0.8rem;
+            color: var(--uui-color-text-alt);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+
+        .note-add:hover {
+            opacity: 1;
+            color: var(--uui-color-interactive);
+        }
+
+        /* Version cell: stacked filename + note */
+        .version-cell {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .version-cell-primary {
+            display: flex;
+            align-items: center;
+            gap: var(--uui-size-space-2);
+        }
+
+        .version-cell-secondary {
+            padding-left: 0;
+        }
+
+        .filename-text {
+            font-weight: 500;
+        }
+
+        /* Uploaded date and user */
         .upload-cell {
             display: flex;
             flex-direction: column;
