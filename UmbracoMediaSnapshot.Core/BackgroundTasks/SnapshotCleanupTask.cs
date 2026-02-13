@@ -105,7 +105,7 @@
             // Group all blobs by their top-level folder
             var folderBlobs = new Dictionary<string, List<BlobItem>>(StringComparer.OrdinalIgnoreCase);
 
-            await foreach (var blob in snapshotContainer.GetBlobsAsync(cancellationToken: cancellationToken))
+            await foreach (var blob in snapshotContainer.GetBlobsAsync(traits: BlobTraits.Metadata, cancellationToken: cancellationToken))
             {
                 var parts = blob.Name.Split('/', 2);
                 var folder = parts.Length > 1 ? parts[0] : "(root)";
@@ -121,6 +121,7 @@
 
             var ageCutoff = DateTimeOffset.UtcNow.AddDays(-_settings.MaxSnapshotAgeDays);
             int totalDeleted = 0;
+            int pinnedSkipped = 0;
             int foldersProcessed = 0;
 
             foreach (var (folder, blobs) in folderBlobs)
@@ -139,6 +140,15 @@
 
                 foreach (var blob in toDelete)
                 {
+                    // Never delete pinned snapshots
+                    if (blob.Metadata.TryGetValue("Pinned", out var pinned)
+                        && string.Equals(pinned, "true", StringComparison.OrdinalIgnoreCase))
+                    {
+                        pinnedSkipped++;
+                        _logger.LogDebug("Skipping pinned snapshot: {BlobName}", blob.Name);
+                        continue;
+                    }
+
                     var reason = blob.Properties.LastModified < ageCutoff ? "expired" : "over limit";
                     _logger.LogInformation("Cleanup: deleting {Reason} snapshot {BlobName}", reason, blob.Name);
                     await snapshotContainer.DeleteBlobIfExistsAsync(blob.Name, cancellationToken: cancellationToken);
@@ -154,8 +164,8 @@
                 _statsCache.Invalidate();
             }
 
-            _logger.LogInformation("Snapshot cleanup completed — processed {Folders} folders, deleted {Deleted} snapshots",
-                foldersProcessed, totalDeleted);
+            _logger.LogInformation("Snapshot cleanup completed — processed {Folders} folders, deleted {Deleted} snapshots, skipped {Pinned} pinned",
+                foldersProcessed, totalDeleted, pinnedSkipped);
         }
     }
 }

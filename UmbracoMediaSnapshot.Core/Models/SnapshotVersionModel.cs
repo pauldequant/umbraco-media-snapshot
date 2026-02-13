@@ -50,5 +50,10 @@
         /// Gets or sets the user-provided note/label for this snapshot
         /// </summary>
         public string? Note { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether this snapshot is pinned (protected from automatic cleanup)
+        /// </summary>
+        public bool IsPinned { get; set; }
     }
 }

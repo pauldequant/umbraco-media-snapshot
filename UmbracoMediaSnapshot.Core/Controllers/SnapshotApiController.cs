@@ -158,7 +158,9 @@
                             ? parsedRestoredDate
                             : null,
                         RestoredFrom = blobItem.Metadata.TryGetValue("RestoredFrom", out var restoredFrom) ? restoredFrom : null,
-                        Note = blobItem.Metadata.TryGetValue("SnapshotNote", out var note) ? note : null
+                        Note = blobItem.Metadata.TryGetValue("SnapshotNote", out var note) ? note : null,
+                        IsPinned = blobItem.Metadata.TryGetValue("Pinned", out var pinned)
+                            && string.Equals(pinned, "true", StringComparison.OrdinalIgnoreCase)
                     });
                 }
 
@@ -920,6 +922,80 @@
             {
                 _logger.LogError(ex, "Error updating note on snapshot {SnapshotName}", request.SnapshotName);
                 return Problem("An unexpected error occurred while updating the note");
+            }
+        }
+
+        /// <summary>
+        /// Toggles the pinned state on a snapshot blob's metadata.
+        /// Pinned snapshots are protected from automatic cleanup.
+        /// </summary>
+        /// <param name="request">The request<see cref="TogglePinRequest"/></param>
+        /// <param name="cancellationToken">The cancellationToken<see cref="CancellationToken"/></param>
+        /// <returns>The <see cref="Task{IActionResult}"/></returns>
+        [HttpPost("toggle-pin")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(typeof(ProblemDetails), 400)]
+        [ProducesResponseType(typeof(ProblemDetails), 404)]
+        [ProducesResponseType(typeof(ProblemDetails), 500)]
+        public async Task<IActionResult> TogglePin([FromBody] TogglePinRequest request, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request.SnapshotName))
+                    return BadRequest("Snapshot name is required");
+
+                if (request.SnapshotName.Contains("..") || request.SnapshotName.Contains('/') || request.SnapshotName.Contains('\\'))
+                    return BadRequest("Invalid snapshot name");
+
+                var media = _mediaService.GetById(request.MediaKey);
+                if (media == null) return NotFound("Media item not found");
+
+                var umbracoFileValue = media.GetValue<string>("umbracoFile");
+                string? folderPath = _blobService.ExtractFolderPath(umbracoFileValue);
+
+                if (string.IsNullOrEmpty(folderPath))
+                    return BadRequest("Unable to determine media folder path");
+
+                var snapshotContainer = _blobService.GetSnapshotContainer();
+                var snapshotBlobPath = $"{folderPath}/{request.SnapshotName}";
+                var snapshotBlob = snapshotContainer.GetBlobClient(snapshotBlobPath);
+
+                if (!await snapshotBlob.ExistsAsync(cancellationToken))
+                    return NotFound("Snapshot file not found");
+
+                var properties = await snapshotBlob.GetPropertiesAsync(cancellationToken: cancellationToken);
+                var metadata = new Dictionary<string, string>(properties.Value.Metadata);
+
+                // Toggle: if currently pinned, unpin; otherwise pin
+                var currentlyPinned = metadata.TryGetValue("Pinned", out var val)
+                    && string.Equals(val, "true", StringComparison.OrdinalIgnoreCase);
+
+                if (currentlyPinned)
+                {
+                    metadata.Remove("Pinned");
+                }
+                else
+                {
+                    metadata["Pinned"] = "true";
+                }
+
+                await snapshotBlob.SetMetadataAsync(metadata, cancellationToken: cancellationToken);
+
+                var newState = !currentlyPinned;
+                _logger.LogInformation("{Action} snapshot {SnapshotName} for media {MediaKey}",
+                    newState ? "Pinned" : "Unpinned", request.SnapshotName, request.MediaKey);
+
+                return Ok(new { success = true, isPinned = newState, message = newState ? "Snapshot pinned" : "Snapshot unpinned" });
+            }
+            catch (RequestFailedException ex)
+            {
+                _logger.LogError(ex, "Azure storage error while toggling pin on snapshot {SnapshotName}", request.SnapshotName);
+                return Problem("Failed to update snapshot pin state");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error toggling pin on snapshot {SnapshotName}", request.SnapshotName);
+                return Problem("An unexpected error occurred while updating the pin state");
             }
         }
     }

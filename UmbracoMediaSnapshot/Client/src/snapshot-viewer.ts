@@ -94,6 +94,9 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
     @state()
     private _uniqueUploaderCount = 0;
 
+    @state()
+    private _togglingPin: string | null = null;
+
     private _pageSize = 10;
 
     private _authContext?: typeof UMB_AUTH_CONTEXT.TYPE;
@@ -786,13 +789,17 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
      * Renders a compact inline status badge for a snapshot version
      */
     private _renderStatus(version: any, index: number) {
+        const badges = [];
+        if (version.isPinned) {
+            badges.push(html`<uui-tag class="status-badge" look="primary" color="warning">Pinned</uui-tag>`);
+        }
         if (version.isRestored) {
-            return html`<uui-tag class="status-badge" look="primary" color="positive">Restored</uui-tag>`;
+            badges.push(html`<uui-tag class="status-badge" look="primary" color="positive">Restored</uui-tag>`);
         }
         if (index === 0) {
-            return html`<uui-tag class="status-badge" look="primary" color="default">Latest</uui-tag>`;
+            badges.push(html`<uui-tag class="status-badge" look="primary" color="default">Latest</uui-tag>`);
         }
-        return html``;
+        return badges;
     }
 
     /**
@@ -1147,6 +1154,15 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                                             <uui-icon name="icon-download-alt"></uui-icon>
                                         </uui-button>
                                         <uui-button
+                                            look="${v.isPinned ? 'primary' : 'secondary'}"
+                                            color="${v.isPinned ? 'warning' : 'default'}"
+                                            compact
+                                            ?disabled="${this._togglingPin === v.name}"
+                                            title="${v.isPinned ? 'Unpin — allow automatic cleanup' : 'Pin — protect from automatic cleanup'}"
+                                            @click="${() => this._togglePin(v)}">
+                                            <uui-icon name="icon-pin-location"></uui-icon>
+                                        </uui-button>
+                                        <uui-button
                                             look="primary"
                                             color="positive"
                                             compact
@@ -1159,8 +1175,8 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                                             look="secondary"
                                             color="danger"
                                             compact
-                                            ?disabled="${isLatest || this._isDeleting}"
-                                            title="${isLatest ? 'Cannot delete the latest version' : 'Delete this snapshot'}"
+                                            ?disabled="${isLatest || this._isDeleting || v.isPinned}"
+                                            title="${v.isPinned ? 'Unpin before deleting' : isLatest ? 'Cannot delete the latest version' : 'Delete this snapshot'}"
                                             @click="${() => this._deleteSnapshot(v)}">
                                             <uui-icon name="icon-trash"></uui-icon>
                                         </uui-button>
@@ -1373,6 +1389,62 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
                 <uui-icon name="icon-edit"></uui-icon> Add note
             </button>
         `;
+    }
+
+    // --- Pin operations ---
+
+    /**
+     * Toggles the pinned state of a snapshot
+     */
+    private async _togglePin(version: any) {
+        if (this._togglingPin) return;
+
+        this._togglingPin = version.name;
+
+        const token = await this._authContext?.getLatestToken();
+        if (!token) {
+            this._notificationContext?.peek('danger', {
+                data: { headline: 'Authentication Error', message: 'No authentication token available.' }
+            });
+            this._togglingPin = null;
+            return;
+        }
+
+        try {
+            const response = await fetch('/umbraco/management/api/v1/snapshot/toggle-pin', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    mediaKey: this._mediaKey,
+                    snapshotName: version.name
+                })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                // Update local state immediately
+                version.isPinned = result.isPinned;
+                this.requestUpdate();
+                this._notificationContext?.peek('positive', {
+                    data: { headline: result.isPinned ? 'Snapshot Pinned' : 'Snapshot Unpinned', message: result.message }
+                });
+            } else {
+                const error = await response.json();
+                this._notificationContext?.peek('danger', {
+                    data: { headline: 'Pin Failed', message: error.detail || 'Failed to update pin state' }
+                });
+            }
+        } catch (error) {
+            console.error("Failed to toggle pin:", error);
+            this._notificationContext?.peek('danger', {
+                data: { headline: 'Error', message: 'An error occurred while updating the pin state.' }
+            });
+        } finally {
+            this._togglingPin = null;
+        }
     }
 
     static styles = css`
