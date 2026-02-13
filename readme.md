@@ -84,7 +84,8 @@ Add this section to `appsettings.json` to customize behaviour:
     "MaxSnapshotAgeDays": 365,
     "SasTokenExpirationHours": 1,
     "EnableAutomaticCleanup": true,
-    "AdditionalMediaTypes": []
+    "AdditionalMediaTypes": [],
+    "StorageQuotaWarningGB": 5
   }
 }
 ```
@@ -99,6 +100,7 @@ Add this section to `appsettings.json` to customize behaviour:
 | `EnableAutomaticCleanup` | `true` | Automatically delete old snapshots based on the limits above. |
 | `CleanupIntervalMinutes` | `60` | How often the background cleanup task runs (in minutes). Minimum: 1. |
 | `AdditionalMediaTypes` | `[]` | Extra media type aliases to track (e.g. `["productImage", "brandAsset"]`). Built-in types are always included. |
+| `StorageQuotaWarningGB` | `0` | Alerts you if the storage used approaches specified limit |
 
 ### Built-in Media Types
 

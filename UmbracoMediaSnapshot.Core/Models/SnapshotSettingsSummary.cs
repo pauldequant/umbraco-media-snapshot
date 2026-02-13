@@ -36,5 +36,21 @@
         /// (built-in + any user-configured additional types)
         /// </summary>
         public List<string> TrackedMediaTypes { get; set; } = [];
+
+        /// <summary>
+        /// Gets or sets the storage quota warning threshold in gigabytes.
+        /// 0 means quota warnings are disabled.
+        /// </summary>
+        public double StorageQuotaWarningGB { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether the current total storage exceeds the configured quota
+        /// </summary>
+        public bool QuotaExceeded { get; set; }
+
+        /// <summary>
+        /// Gets or sets the percentage of quota used (0–100+). Null when quota is disabled.
+        /// </summary>
+        public double? QuotaUsagePercent { get; set; }
     }
 }

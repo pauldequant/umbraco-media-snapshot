@@ -334,8 +334,32 @@
                     })
                     .ToList();
 
-                // Resolve each folder to its owning media item for backoffice linking
-                ResolveMediaItems(topConsumers);
+                    ResolveMediaItems(topConsumers);
+
+                var trendData = stats.DailyTrend
+                    .OrderBy(kvp => kvp.Key)
+                    .Select(kvp => new TrendDataPoint
+                    {
+                        Date = kvp.Key,
+                        Count = kvp.Value.Count,
+                        SizeBytes = kvp.Value.SizeBytes
+                    })
+                    .ToList();
+
+                // Project media type breakdown sorted by size descending
+                var mediaTypeBreakdown = stats.MediaTypeBreakdown
+                    .OrderByDescending(kvp => kvp.Value.SizeBytes)
+                    .Select(kvp => new MediaTypeBreakdownItem
+                    {
+                        Category = kvp.Key,
+                        Count = kvp.Value.Count,
+                        SizeBytes = kvp.Value.SizeBytes,
+                        SizeFormatted = FormatBytes(kvp.Value.SizeBytes),
+                        Percentage = stats.TotalSizeBytes > 0
+                            ? Math.Round((double)kvp.Value.SizeBytes / stats.TotalSizeBytes * 100, 1)
+                            : 0
+                    })
+                    .ToList();
 
                 return Ok(new SnapshotStorageModel
                 {
@@ -344,7 +368,9 @@
                     TotalSizeFormatted = FormatBytes(stats.TotalSizeBytes),
                     MediaItemCount = stats.MediaItemCount,
                     TopConsumers = topConsumers,
-                    Settings = BuildSettingsSummary()
+                    Settings = BuildSettingsSummary(stats.TotalSizeBytes),
+                    TrendData = trendData,
+                    MediaTypeBreakdown = mediaTypeBreakdown
                 });
             }
             catch (RequestFailedException ex)
@@ -423,18 +449,31 @@
         }
 
         /// <summary>
-        /// Builds a settings summary from the current configuration
+        /// Builds a settings summary from the current configuration,
+        /// optionally computing quota usage against the given total size
         /// </summary>
+        /// <param name="totalSizeBytes">Current total snapshot storage in bytes</param>
         /// <returns>The <see cref="SnapshotSettingsSummary"/></returns>
-        private SnapshotSettingsSummary BuildSettingsSummary() => new()
+        private SnapshotSettingsSummary BuildSettingsSummary(long totalSizeBytes = 0)
         {
-            MaxSnapshotsPerMedia = _settings.MaxSnapshotsPerMedia,
-            MaxSnapshotAgeDays = _settings.MaxSnapshotAgeDays,
-            EnableAutomaticCleanup = _settings.EnableAutomaticCleanup,
-            CleanupIntervalMinutes = _settings.CleanupIntervalMinutes,
-            SasTokenExpirationHours = _settings.SasTokenExpirationHours,
-            TrackedMediaTypes = [.. _blobService.TargetMediaTypes.OrderBy(t => t)]
-        };
+            var quotaGB = _settings.StorageQuotaWarningGB;
+            var quotaBytes = quotaGB * 1024 * 1024 * 1024;
+
+            return new SnapshotSettingsSummary
+            {
+                MaxSnapshotsPerMedia = _settings.MaxSnapshotsPerMedia,
+                MaxSnapshotAgeDays = _settings.MaxSnapshotAgeDays,
+                EnableAutomaticCleanup = _settings.EnableAutomaticCleanup,
+                CleanupIntervalMinutes = _settings.CleanupIntervalMinutes,
+                SasTokenExpirationHours = _settings.SasTokenExpirationHours,
+                TrackedMediaTypes = [.. _blobService.TargetMediaTypes.OrderBy(t => t)],
+                StorageQuotaWarningGB = quotaGB,
+                QuotaExceeded = quotaGB > 0 && totalSizeBytes > quotaBytes,
+                QuotaUsagePercent = quotaGB > 0
+                    ? Math.Round(totalSizeBytes / quotaBytes * 100, 1)
+                    : null
+            };
+        }
 
         /// <summary>
         /// Formats a byte count into a human-readable string

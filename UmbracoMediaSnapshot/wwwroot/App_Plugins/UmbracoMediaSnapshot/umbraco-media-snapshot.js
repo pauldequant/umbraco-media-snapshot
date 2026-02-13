@@ -22,7 +22,7 @@ let c = class extends $(x) {
       this._modalManagerContext = a;
     }), this.consumeContext(z, (a) => {
       const s = a;
-      s.unique && this.observe(s.unique, (o) => {
+      s?.unique && this.observe(s.unique, (o) => {
         o && o !== this._mediaKey && (this._mediaKey = o.toString(), this._currentPage = 1, this._fetchVersions(this._mediaKey));
       });
     });

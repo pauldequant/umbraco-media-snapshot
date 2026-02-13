@@ -138,7 +138,21 @@ const e = {
     dashboardHours: "uur",
     dashboardOpenInEditor: "{0} openen in media-editor",
     dashboardOrphanedTitle: "Media-item niet gevonden — map kan verweesd zijn",
-    dashboardOrphaned: "Verweesd"
+    dashboardOrphaned: "Verweesd",
+    dashboardTrendTitle: "Snapshot-trend",
+    dashboardTrend7Days: "7 dagen",
+    dashboardTrend30Days: "30 dagen",
+    dashboardTrend90Days: "90 dagen",
+    dashboardTrendNoData: "Geen snapshot-activiteit in deze periode.",
+    dashboardMediaTypeTitle: "Opslag per mediatype",
+    dashboardMediaTypeImage: "Afbeeldingen",
+    dashboardMediaTypeVideo: "Video",
+    dashboardMediaTypeAudio: "Audio",
+    dashboardMediaTypeDocument: "Documenten",
+    dashboardMediaTypeOther: "Overig",
+    dashboardQuotaWarning: "Opslagquotum nadert limiet",
+    dashboardQuotaExceeded: "Opslagquotum overschreden",
+    dashboardQuotaUsage: "{0} van {1} gebruikt ({2}%)"
   }
 };
 export {

@@ -45,5 +45,12 @@
         /// The built-in types (Image, File, umbracoMediaArticle, etc.) are always included.
         /// </summary>
         public List<string> AdditionalMediaTypes { get; set; } = [];
+
+        /// <summary>
+        /// Gets or sets the storage quota warning threshold in gigabytes.
+        /// When total snapshot storage exceeds this value, a warning is shown on the dashboard.
+        /// Set to 0 to disable quota warnings (default: 0).
+        /// </summary>
+        public double StorageQuotaWarningGB { get; set; } = 0;
     }
 }

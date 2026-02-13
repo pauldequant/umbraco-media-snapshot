@@ -128,7 +128,7 @@ export class SnapshotViewerElement extends UmbElementMixin(LitElement) {
 
         this.consumeContext(UMB_WORKSPACE_CONTEXT, (workspaceContext) => {
             const entityWorkspace = workspaceContext as unknown as UmbEntityWorkspaceContext;
-            if (entityWorkspace.unique) {
+            if (entityWorkspace?.unique) {
                 this.observe(entityWorkspace.unique, (unique) => {
                     if (unique && unique !== this._mediaKey) {
                         this._mediaKey = unique.toString();

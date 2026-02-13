@@ -164,5 +164,25 @@
         dashboardOpenInEditor: 'Open {0} in media editor',
         dashboardOrphanedTitle: 'Media item not found — folder may be orphaned',
         dashboardOrphaned: 'Orphaned',
+
+        // --- Trend chart ---
+        dashboardTrendTitle: 'Snapshot Trend',
+        dashboardTrend7Days: '7 days',
+        dashboardTrend30Days: '30 days',
+        dashboardTrend90Days: '90 days',
+        dashboardTrendNoData: 'No snapshot activity in this period.',
+
+        // --- Media type breakdown ---
+        dashboardMediaTypeTitle: 'Storage by Media Type',
+        dashboardMediaTypeImage: 'Images',
+        dashboardMediaTypeVideo: 'Video',
+        dashboardMediaTypeAudio: 'Audio',
+        dashboardMediaTypeDocument: 'Documents',
+        dashboardMediaTypeOther: 'Other',
+
+        // --- Storage quota ---
+        dashboardQuotaWarning: 'Storage quota approaching limit',
+        dashboardQuotaExceeded: 'Storage quota exceeded',
+        dashboardQuotaUsage: '{0} of {1} used ({2}%)',
     },
 };

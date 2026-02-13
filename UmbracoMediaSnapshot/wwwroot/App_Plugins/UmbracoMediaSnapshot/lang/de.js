@@ -138,7 +138,21 @@ const e = {
     dashboardHours: "Stunden",
     dashboardOpenInEditor: "{0} im Medien-Editor öffnen",
     dashboardOrphanedTitle: "Medien-Element nicht gefunden — Ordner könnte verwaist sein",
-    dashboardOrphaned: "Verwaist"
+    dashboardOrphaned: "Verwaist",
+    dashboardTrendTitle: "Snapshot-Trend",
+    dashboardTrend7Days: "7 Tage",
+    dashboardTrend30Days: "30 Tage",
+    dashboardTrend90Days: "90 Tage",
+    dashboardTrendNoData: "Keine Snapshot-Aktivität in diesem Zeitraum.",
+    dashboardMediaTypeTitle: "Speicher nach Medientyp",
+    dashboardMediaTypeImage: "Bilder",
+    dashboardMediaTypeVideo: "Video",
+    dashboardMediaTypeAudio: "Audio",
+    dashboardMediaTypeDocument: "Dokumente",
+    dashboardMediaTypeOther: "Sonstige",
+    dashboardQuotaWarning: "Speicherkontingent nähert sich dem Limit",
+    dashboardQuotaExceeded: "Speicherkontingent überschritten",
+    dashboardQuotaUsage: "{0} von {1} verwendet ({2}%)"
   }
 };
 export {
