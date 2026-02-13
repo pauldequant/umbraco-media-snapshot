@@ -15,8 +15,28 @@
   "RelatedPackages": [],
   "Screenshots": [
     {
-      "ImageUrl": "https://github.com/pauldequant/umbraco-media-snapshot/blob/main/Images/editor.png?raw=true",
-      "Caption": "Umbraco Media Snapshot - File Version History"
+      "ImageUrl": "https://github.com/pauldequant/umbraco-media-snapshot/blob/main/Images/dashboard-1?raw=true",
+      "Caption": "Umbraco Media Snapshot - Dashboard - Alerts, Key Details and Trends"
+    },
+    {
+      "ImageUrl": "https://github.com/pauldequant/umbraco-media-snapshot/blob/main/Images/dashboard-2?raw=true",
+      "Caption": "Umbraco Media Snapshot - Dashboard - Storage by Media Type and Top Storage Consumers"
+    },
+    {
+      "ImageUrl": "https://github.com/pauldequant/umbraco-media-snapshot/blob/main/Images/dashboard-3?raw=true",
+      "Caption": "Umbraco Media Snapshot - Dashboard - Active Configuration"
+    },
+    {
+      "ImageUrl": "https://github.com/pauldequant/umbraco-media-snapshot/blob/main/Images/editor-1.png?raw=true",
+      "Caption": "Umbraco Media Snapshot - File Version History  Stats and List"
+    },
+    {
+      "ImageUrl": "https://github.com/pauldequant/umbraco-media-snapshot/blob/main/Images/editor-2.png?raw=true",
+      "Caption": "Umbraco Media Snapshot - File Version History - Compare Details"
+    },
+    {
+      "ImageUrl": "https://github.com/pauldequant/umbraco-media-snapshot/blob/main/Images/editor-3.png?raw=true",
+      "Caption": "Umbraco Media Snapshot - File Version History - Compare with Slider"
     }
   ],
   "Tags": [
@@ -25,7 +45,15 @@
     "file history",
     "file restore",
     "backup",
-    "property editor"
+    "property editor",
+    "media backups",
+    "azure blob storage",
+    "umbraco",
+    "media",
+    "snapshot",
+    "restore",
+    "asset-management",
+    "media-tools"
   ],
   "Title": "Umbraco Media Snapshot"
 }
